@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from app.config import FRONTEND_URL
+from app.config import FRONTEND_URL, ALLOWED_ORIGINS
 from app.database import Base, SessionLocal, engine
 import app.models  # Ensures all models are registered with Base
 from app.routes import auth, weddings
@@ -36,9 +36,26 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Royal Wedding Invitation API", version="2.0.0", lifespan=lifespan)
 
+# Build configured CORS origins
+cors_origins = set()
+if FRONTEND_URL:
+    for o in FRONTEND_URL.split(","):
+        if o.strip():
+            cors_origins.add(o.strip().rstrip("/"))
+
+if ALLOWED_ORIGINS:
+    for o in ALLOWED_ORIGINS.split(","):
+        if o.strip():
+            cors_origins.add(o.strip().rstrip("/"))
+
+# Standard local dev origins
+for local_o in ["http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173", "http://127.0.0.1:5174", "http://127.0.0.1:8001"]:
+    cors_origins.add(local_o)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=list(cors_origins),
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

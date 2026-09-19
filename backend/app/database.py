@@ -12,6 +12,8 @@ Base = declarative_base()
 def init_engine():
     # Try the configured DATABASE_URL first
     target_url = DATABASE_URL
+    if target_url.startswith("postgres://"):
+        target_url = target_url.replace("postgres://", "postgresql://", 1)
     try:
         if target_url.startswith("sqlite"):
             eng = create_engine(target_url, connect_args={"check_same_thread": False})

@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: wedding-invitation-backend
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: wedding-invitation-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: FRONTEND_URL
+        sync: false
+
+databases:
+  - name: wedding-invitation-db
+    databaseName: wedding_invitation
+    user: wedding_admin
+    plan: free
