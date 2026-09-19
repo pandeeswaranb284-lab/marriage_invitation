@@ -1,0 +1,151 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Rose Text Gradients */
+.rose-text-gradient {
+  background: linear-gradient(135deg, #e85d75 0%, #e11d48 40%, #be123c 70%, #8f3045 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.rose-text-subtle {
+  background: linear-gradient(135deg, #8f3045 0%, #e85d75 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Gold Text Gradients for traditional accents */
+.gold-text-gradient {
+  background: linear-gradient(135deg, #dfba73 0%, #c5a059 50%, #8c6d33 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Luxury Rose Card Borders */
+.border-rose-ornate {
+  border: 1px solid rgba(232, 93, 117, 0.35);
+  box-shadow: 0 4px 20px rgba(232, 93, 117, 0.12), inset 0 0 15px rgba(252, 228, 232, 0.5);
+}
+
+.border-rose-double {
+  border: 3px double rgba(232, 93, 117, 0.45);
+}
+
+/* Soft Rose Kolam Background Pattern */
+.bg-kolam-pattern {
+  background-image: radial-gradient(rgba(232, 93, 117, 0.12) 1px, transparent 1px),
+    radial-gradient(rgba(244, 114, 182, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: 0 0, 12px 12px;
+}
+
+/* Silk Texture Background - Soft Blush */
+.bg-silk-texture {
+  background-color: #FFF7F9;
+  background-image: radial-gradient(at 50% 0%, rgba(252, 228, 232, 0.8) 0px, transparent 75%),
+    radial-gradient(at 100% 100%, rgba(255, 240, 243, 0.9) 0px, transparent 70%);
+}
+
+.bg-sacred-ivory {
+  background-color: #ffffff;
+  background-image: radial-gradient(at 50% 0%, rgba(254, 226, 226, 0.35) 0px, transparent 70%),
+    radial-gradient(rgba(232, 93, 117, 0.06) 1px, transparent 1px);
+  background-size: auto, 28px 28px;
+}
+
+.bg-royal-reception {
+  background-color: #FFF7F9;
+  background-image: radial-gradient(at 50% -20%, rgba(254, 205, 211, 0.5) 0px, transparent 70%),
+    radial-gradient(at 100% 100%, rgba(255, 241, 242, 0.8) 0px, transparent 60%);
+}
+
+/* Custom Rose Scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FFF7F9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #f472b6;
+  border-radius: 4px;
+  border: 1px solid rgba(232, 93, 117, 0.3);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #e85d75;
+}
+
+/* 3D Transform perspectives */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+}
+
+/* Shimmer Light Sweep */
+.shimmer-sweep {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer-sweep::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    60deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.4) 50%,
+    transparent 60%
+  );
+  transform: rotate(30deg) translateX(-100%);
+  animation: sweep 5s infinite;
+}
+
+@keyframes sweep {
+  0% { transform: rotate(30deg) translateX(-150%); }
+  40%, 100% { transform: rotate(30deg) translateX(150%); }
+}
+
+/* Smooth scroll & nav offset */
+html {
+  scroll-behavior: smooth;
+}
+
+section[id] {
+  scroll-margin-top: 70px;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.group:hover .group-hover\:scale-108 {
+  transform: scale(1.08);
+}
+
+body.nav-open {
+  overflow: hidden;
+}

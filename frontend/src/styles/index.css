@@ -1,0 +1,129 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background-color: #070c18;
+  color: #f7e7ce;
+}
+
+/* Custom Gold Text Gradients */
+.gold-text-gradient {
+  background: linear-gradient(135deg, #dfba73 0%, #fef3c7 40%, #c5a059 70%, #8c6d33 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gold-text-subtle {
+  background: linear-gradient(135deg, #f7e7ce 0%, #dfba73 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Luxury Card Borders */
+.border-gold-ornate {
+  border: 1px solid rgba(197, 160, 89, 0.4);
+  box-shadow: 0 0 15px rgba(197, 160, 89, 0.15), inset 0 0 15px rgba(197, 160, 89, 0.05);
+}
+
+.border-gold-double {
+  border: 3px double rgba(197, 160, 89, 0.6);
+}
+
+/* Subtle Kolam Background Pattern */
+.bg-kolam-pattern {
+  background-image: radial-gradient(rgba(197, 160, 89, 0.12) 1px, transparent 1px),
+    radial-gradient(rgba(197, 160, 89, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: 0 0, 12px 12px;
+}
+
+/* Silk Texture Background */
+.bg-silk-texture {
+  background-color: #070c18;
+  background-image: radial-gradient(at 50% 0%, rgba(38, 6, 19, 0.6) 0px, transparent 75%),
+    radial-gradient(at 100% 100%, rgba(11, 19, 41, 0.8) 0px, transparent 70%);
+}
+
+.bg-sacred-ivory {
+  background-color: #fdfbf7;
+  background-image: radial-gradient(at 50% 0%, rgba(244, 229, 195, 0.4) 0px, transparent 70%),
+    radial-gradient(rgba(197, 160, 89, 0.07) 1px, transparent 1px);
+  background-size: auto, 28px 28px;
+}
+
+.bg-royal-reception {
+  background-color: #0b1329;
+  background-image: radial-gradient(at 50% -20%, rgba(52, 8, 27, 0.9) 0px, transparent 70%),
+    radial-gradient(at 100% 100%, rgba(4, 8, 18, 0.9) 0px, transparent 60%);
+}
+
+/* Custom Gold Scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: #070c18;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #8c6d33;
+  border-radius: 4px;
+  border: 1px solid rgba(197, 160, 89, 0.3);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #c5a059;
+}
+
+/* 3D Transform perspectives */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+}
+
+/* Shimmer Light Sweep */
+.shimmer-sweep {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer-sweep::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    60deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.15) 50%,
+    transparent 60%
+  );
+  transform: rotate(30deg) translateX(-100%);
+  animation: sweep 5s infinite;
+}
+
+@keyframes sweep {
+  0% { transform: rotate(30deg) translateX(-150%); }
+  40%, 100% { transform: rotate(30deg) translateX(150%); }
+}

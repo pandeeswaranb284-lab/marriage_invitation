@@ -1,0 +1,1 @@
+"""Marriage invitation backend package."""
