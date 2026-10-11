@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Heart, Sparkles } from 'lucide-react';
+import { resolveMediaUrl } from '../services/api';
 
 function CountdownTimer({ weddingDate }) {
   const [time, setTime] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, done: false });
@@ -63,10 +64,11 @@ function CountdownTimer({ weddingDate }) {
 }
 
 export default function HomeSection({ id, wedding, formattedDate }) {
-  const artworkUrl =
+  const artworkUrl = resolveMediaUrl(
     wedding.couple_details?.artwork_url ||
     wedding.gallery_images?.find(g => g.is_hero)?.image_url ||
-    'https://images.unsplash.com/photo-1583939003579-730e3918a45a?auto=format&fit=crop&w=800&q=80';
+    'https://images.unsplash.com/photo-1583939003579-730e3918a45a?auto=format&fit=crop&w=800&q=80'
+  );
 
   const coupleDetails = wedding.couple_details || {};
   const artworkSizeRaw = coupleDetails.artwork_size || 'medium';

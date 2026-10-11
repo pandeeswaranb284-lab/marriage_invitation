@@ -14,8 +14,7 @@ import {
   Image as ImageIcon,
   Loader2,
   Sliders,
-} from 'lucide-react';
-import { API_BASE } from '../../services/api';
+import { API_BASE, resolveMediaUrl } from '../../services/api';
 
 const slugify = (groom, bride) => {
   const clean = `${groom || ''} ${bride || ''}`
@@ -92,7 +91,7 @@ export default function WeddingEditor() {
       }));
       setMusicUploadNotice(`"${file.name}" uploaded successfully! Background music is enabled.`);
       if (audioPreviewRef.current) {
-        audioPreviewRef.current.src = data.url;
+        audioPreviewRef.current.src = resolveMediaUrl(data.url);
       }
     } catch (err) {
       setMusicUploadError(err.message || 'Failed to upload audio file');
@@ -483,7 +482,7 @@ export default function WeddingEditor() {
               <div className="w-full h-full rounded-full overflow-hidden bg-navy-900 border border-white/20">
                 {wedding?.couple_details?.artwork_url ? (
                   <img
-                    src={wedding.couple_details.artwork_url}
+                    src={resolveMediaUrl(wedding.couple_details.artwork_url)}
                     alt="Center Couple Preview"
                     className="w-full h-full transition-all duration-300"
                     style={{
@@ -781,7 +780,7 @@ export default function WeddingEditor() {
             <div className="p-4 rounded-xl bg-navy-900 border border-gold-500/30 space-y-3">
               <audio
                 ref={audioPreviewRef}
-                src={wedding.music_url}
+                src={resolveMediaUrl(wedding.music_url)}
                 onEnded={() => setPreviewPlaying(false)}
                 className="hidden"
               />

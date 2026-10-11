@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Save, CheckCircle2, Image as ImageIcon, Upload, AlertCircle, Loader2, Sparkles, RefreshCw, Sliders } from 'lucide-react';
-import { API_BASE } from '../../services/api';
+import { API_BASE, resolveMediaUrl } from '../../services/api';
 
 export default function CoupleEditor() {
   const [wedding, setWedding] = useState(null);
@@ -249,7 +249,7 @@ export default function CoupleEditor() {
                 <div className="w-full h-full rounded-full overflow-hidden bg-navy-900 border border-white/20">
                   {couple.artwork_url ? (
                     <img
-                      src={couple.artwork_url}
+                      src={resolveMediaUrl(couple.artwork_url)}
                       alt="Couple Center Preview"
                       className="w-full h-full transition-all duration-300"
                       style={{

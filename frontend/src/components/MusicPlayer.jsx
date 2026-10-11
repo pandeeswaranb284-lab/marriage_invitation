@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Music, VolumeX, Volume2 } from 'lucide-react';
+import { resolveMediaUrl } from '../services/api';
 
 export default function MusicPlayer({
   musicUrl = "https://actions.google.com/sounds/v1/ambiences/temple_bells_and_chants.ogg",
   enabled = true,
 }) {
+  const resolvedUrl = resolveMediaUrl(musicUrl);
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
@@ -14,7 +16,7 @@ export default function MusicPlayer({
     if (!enabled && audioRef.current) {
       audioRef.current.pause();
       setIsPlaying(false);
-    } else if (enabled && musicUrl && audioRef.current) {
+    } else if (enabled && resolvedUrl && audioRef.current) {
       audioRef.current
         .play()
         .then(() => setIsPlaying(true))
@@ -23,7 +25,7 @@ export default function MusicPlayer({
           setIsPlaying(false);
         });
     }
-  }, [enabled, musicUrl]);
+  }, [enabled, resolvedUrl]);
 
   const toggleMusic = () => {
     if (!audioRef.current) return;
@@ -50,7 +52,7 @@ export default function MusicPlayer({
     <div className="fixed bottom-6 left-6 z-40 flex items-center space-x-2">
       <audio
         ref={audioRef}
-        src={musicUrl}
+        src={resolvedUrl}
         loop
         preload="none"
       />
