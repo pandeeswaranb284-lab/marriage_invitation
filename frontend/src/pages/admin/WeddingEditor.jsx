@@ -632,7 +632,7 @@ export default function WeddingEditor() {
                               : 'bg-navy-900 text-gold-300/80 border-gold-500/30 hover:border-gold-400 hover:text-white'
                           }`}
                         >
-                          {preset?.label || pos.label}
+                          {pos.label}
                         </button>
                       );
                     })}
