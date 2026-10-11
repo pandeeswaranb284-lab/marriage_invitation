@@ -1,10 +1,12 @@
 import csv
 import io
 import re
+import uuid
 from datetime import datetime
+from pathlib import Path
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status, File, UploadFile
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_admin
@@ -205,6 +207,90 @@ def get_admin_wedding(slug: str, db: Session = Depends(get_db), _: object = Depe
     }
 
 
+UPLOAD_DIR = Path(__file__).parent.parent.parent / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@router.post("/admin/upload-music")
+async def upload_music(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _: object = Depends(get_current_admin),
+):
+    allowed_exts = {".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac", ".weba"}
+    ext = Path(file.filename).suffix.lower() if file.filename else ""
+    if ext not in allowed_exts:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported audio format '{ext}'. Please upload an MP3, WAV, OGG, or M4A file."
+        )
+
+    clean_stem = re.sub(r'[^a-zA-Z0-9_-]', '_', Path(file.filename).stem)[:40]
+    unique_filename = f"music_{clean_stem}_{uuid.uuid4().hex[:8]}{ext}"
+    target_path = UPLOAD_DIR / unique_filename
+
+    contents = await file.read()
+    with open(target_path, "wb") as f:
+        f.write(contents)
+
+    relative_url = f"/uploads/{unique_filename}"
+
+    # Auto-update current wedding's music_url and enable music
+    wedding = db.query(Wedding).first()
+    if wedding:
+        wedding.music_url = relative_url
+        wedding.music_enabled = True
+        db.commit()
+
+    return {
+        "url": relative_url,
+        "filename": file.filename,
+        "saved_as": unique_filename,
+        "size": len(contents),
+    }
+
+
+@router.post("/admin/upload-artwork")
+async def upload_artwork(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _: object = Depends(get_current_admin),
+):
+    allowed_exts = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif"}
+    ext = Path(file.filename).suffix.lower() if file.filename else ""
+    if ext not in allowed_exts:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported image format '{ext}'. Please upload a JPG, PNG, WEBP, or GIF image."
+        )
+
+    clean_stem = re.sub(r'[^a-zA-Z0-9_-]', '_', Path(file.filename).stem)[:40]
+    unique_filename = f"couple_{clean_stem}_{uuid.uuid4().hex[:8]}{ext}"
+    target_path = UPLOAD_DIR / unique_filename
+
+    contents = await file.read()
+    with open(target_path, "wb") as f:
+        f.write(contents)
+
+    relative_url = f"/uploads/{unique_filename}"
+
+    wedding = db.query(Wedding).first()
+    if wedding:
+        if not wedding.couple_details:
+            cd = CoupleDetail(wedding_id=wedding.id, artwork_url=relative_url)
+            db.add(cd)
+        else:
+            wedding.couple_details.artwork_url = relative_url
+        db.commit()
+
+    return {
+        "url": relative_url,
+        "filename": file.filename,
+        "saved_as": unique_filename,
+        "size": len(contents),
+    }
+
+
 @router.put("/admin/{slug}")
 def update_admin_wedding(slug: str, payload: WeddingUpdate, db: Session = Depends(get_db), _: object = Depends(get_current_admin)):
     wedding = find_wedding_by_slug_or_default(db, slug)
@@ -229,6 +315,13 @@ def update_admin_wedding(slug: str, payload: WeddingUpdate, db: Session = Depend
         wedding.groom_name = payload.groom_name
     if bride_updated:
         wedding.bride_name = payload.bride_name
+
+    # Automatically generate or clean title
+    if payload.title and payload.title.strip():
+        wedding.title = re.sub(r'\s+', ' ', payload.title).strip()
+    elif groom_updated or bride_updated:
+        if wedding.groom_name and wedding.bride_name:
+            wedding.title = f"Wedding Invitation | {wedding.groom_name.strip()} & {wedding.bride_name.strip()}"
 
     if payload.slug and payload.slug.strip():
         wedding.slug = payload.slug.strip().lower()

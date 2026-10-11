@@ -19,6 +19,22 @@ export default function PublicInvitation() {
     fetchWedding();
   }, [slug]);
 
+  useEffect(() => {
+    if (wedding) {
+      const groom = wedding.groom_name?.replace(/\s+/g, ' ').trim();
+      const bride = wedding.bride_name?.replace(/\s+/g, ' ').trim();
+      const cleanTitle = wedding.title?.replace(/\s+/g, ' ').trim();
+      if (cleanTitle) {
+        document.title = cleanTitle;
+      } else if (groom && bride) {
+        document.title = `Wedding Invitation | ${groom} & ${bride}`;
+      } else {
+        document.title = 'Wedding Invitation';
+      }
+    }
+  }, [wedding]);
+
+
   const fetchWedding = async () => {
     try {
       setLoading(true);

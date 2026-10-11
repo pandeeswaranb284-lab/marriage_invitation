@@ -11,6 +11,10 @@ class CoupleDetail(Base):
     id = Column(Integer, primary_key=True, index=True)
     wedding_id = Column(Integer, ForeignKey("weddings.id"), unique=True, nullable=False)
     artwork_url = Column(String(500), nullable=True)
+    artwork_size = Column(String(50), nullable=True, default="medium")
+    artwork_fit = Column(String(50), nullable=True, default="cover")
+    artwork_position = Column(String(50), nullable=True, default="center")
+    artwork_zoom = Column(Integer, nullable=True, default=100)
     
     # Groom details
     groom_name = Column(String(150), nullable=True)

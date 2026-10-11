@@ -19,6 +19,24 @@ logger = logging.getLogger("uvicorn")
 # Create all tables on startup
 Base.metadata.create_all(bind=engine)
 
+# Ensure new columns exist on couple_details table
+try:
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        for col, col_def in [
+            ("artwork_size", "VARCHAR(50) DEFAULT 'medium'"),
+            ("artwork_fit", "VARCHAR(50) DEFAULT 'cover'"),
+            ("artwork_position", "VARCHAR(50) DEFAULT 'center'"),
+            ("artwork_zoom", "INTEGER DEFAULT 100"),
+        ]:
+            try:
+                conn.execute(text(f"ALTER TABLE couple_details ADD COLUMN {col} {col_def}"))
+                conn.commit()
+            except Exception:
+                pass
+except Exception as exc:
+    logger.warning(f"Column migration note: {exc}")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -68,6 +86,12 @@ app.include_router(weddings.router, prefix="/api")
 @app.get("/api/health")
 def health():
     return {"status": "ok", "service": "royal-wedding-invitation"}
+
+
+# ── Uploads directory for user files (audio, images) ──────────────
+UPLOAD_DIR = Path(__file__).parent.parent / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 
 # ── Serve built React frontend (production) ──────────────────────

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 import WebsiteNavigation from '../components/WebsiteNavigation';
@@ -10,8 +10,8 @@ import FamilySection    from '../sections/FamilySection';
 import MarriageSection  from '../sections/MarriageSection';
 import ReceptionSection from '../sections/ReceptionSection';
 import VenueSection     from '../sections/VenueSection';
-import GallerySection   from '../sections/GallerySection';
 import BlessingsSection from '../sections/BlessingsSection';
+import FloatingFlowersAndButterflies from '../components/decorations/FloatingFlowersAndButterflies';
 
 /**
  * WeddingWebsite
@@ -23,19 +23,35 @@ import BlessingsSection from '../sections/BlessingsSection';
 export default function WeddingWebsite({ wedding, apiBase, onRefresh }) {
   const [languageMode, setLanguageMode] = useState(wedding?.language_mode || 'both');
 
+  useEffect(() => {
+    if (wedding) {
+      const groom = wedding.groom_name?.replace(/\s+/g, ' ').trim();
+      const bride = wedding.bride_name?.replace(/\s+/g, ' ').trim();
+      const cleanTitle = wedding.title?.replace(/\s+/g, ' ').trim();
+      if (cleanTitle) {
+        document.title = cleanTitle;
+      } else if (groom && bride) {
+        document.title = `Wedding Invitation | ${groom} & ${bride}`;
+      } else {
+        document.title = 'Wedding Invitation';
+      }
+    }
+  }, [wedding]);
+
   const formattedDate = new Date(wedding.wedding_date).toLocaleDateString('en-IN', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   });
-
-  const hasGallery = wedding.gallery_images?.length > 0;
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.9, ease: 'easeOut' }}
-      className="min-h-screen bg-[#FFF7F9] text-[#8F3045] overflow-x-hidden"
+      className="min-h-screen bg-[#FFF7F9] text-[#8F3045] overflow-x-hidden relative"
     >
+      {/* ── Ambient Flower Petals & Butterfly Animations ── */}
+      <FloatingFlowersAndButterflies butterflyCount={4} flowerCount={8} petalCount={10} />
+
       {/* ── Sticky Navigation ── */}
       <WebsiteNavigation
         groomName={wedding.groom_name}
@@ -79,13 +95,6 @@ export default function WeddingWebsite({ wedding, apiBase, onRefresh }) {
         marriage={wedding.marriage_details}
         reception={wedding.reception_details}
       />
-
-      {hasGallery && (
-        <GallerySection
-          id="gallery"
-          images={wedding.gallery_images}
-        />
-      )}
 
       {/* ── Blessings (replaces RSVP) ── */}
       <BlessingsSection

@@ -7,6 +7,10 @@ from pydantic import BaseModel, Field
 class CoupleDetailSchema(BaseModel):
     id: Optional[int] = None
     artwork_url: Optional[str] = None
+    artwork_size: Optional[str] = "medium"
+    artwork_fit: Optional[str] = "cover"
+    artwork_position: Optional[str] = "center"
+    artwork_zoom: Optional[int] = 100
     groom_name: Optional[str] = None
     groom_father: Optional[str] = None
     groom_mother: Optional[str] = None

@@ -14,8 +14,16 @@ export default function MusicPlayer({
     if (!enabled && audioRef.current) {
       audioRef.current.pause();
       setIsPlaying(false);
+    } else if (enabled && musicUrl && audioRef.current) {
+      audioRef.current
+        .play()
+        .then(() => setIsPlaying(true))
+        .catch(() => {
+          // Handled gracefully if browser blocks before user gesture
+          setIsPlaying(false);
+        });
     }
-  }, [enabled]);
+  }, [enabled, musicUrl]);
 
   const toggleMusic = () => {
     if (!audioRef.current) return;

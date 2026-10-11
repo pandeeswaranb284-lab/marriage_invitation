@@ -6,7 +6,6 @@ import {
   Users,
   Calendar,
   Sparkles,
-  Image,
   MessageSquare,
   Settings,
   ExternalLink,
@@ -47,7 +46,6 @@ export default function AdminLayout() {
     { to: '/admin/family',    icon: Users,             label: 'Families & Lineage' },
     { to: '/admin/marriage',  icon: Sparkles,          label: 'Marriage Ceremony' },
     { to: '/admin/reception', icon: Sparkles,          label: 'Wedding Reception' },
-    { to: '/admin/gallery',   icon: Image,             label: 'Editorial Gallery' },
     { to: '/admin/wishes',    icon: MessageSquare,     label: 'Blessings Manager' },
     { to: '/admin/settings',  icon: Settings,          label: 'Theme & Language' },
   ];

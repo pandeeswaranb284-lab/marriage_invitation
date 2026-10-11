@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Heart } from 'lucide-react';
+import { Calendar, Heart, Sparkles } from 'lucide-react';
 
 function CountdownTimer({ weddingDate }) {
   const [time, setTime] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, done: false });
@@ -68,6 +68,30 @@ export default function HomeSection({ id, wedding, formattedDate }) {
     wedding.gallery_images?.find(g => g.is_hero)?.image_url ||
     'https://images.unsplash.com/photo-1583939003579-730e3918a45a?auto=format&fit=crop&w=800&q=80';
 
+  const coupleDetails = wedding.couple_details || {};
+  const artworkSizeRaw = coupleDetails.artwork_size || 'medium';
+  const artworkFit = coupleDetails.artwork_fit || 'cover';
+  const artworkPosition = coupleDetails.artwork_position || 'center';
+  const artworkZoom = Number(coupleDetails.artwork_zoom) || 100;
+
+  const getCircleDiameter = (val) => {
+    if (!val) return 272;
+    if (typeof val === 'number') return Math.max(180, Math.min(val, 400));
+    const lower = String(val).toLowerCase();
+    if (lower === 'small') return 220;
+    if (lower === 'medium') return 272;
+    if (lower === 'large') return 324;
+    if (lower === 'xlarge') return 376;
+    const parsed = parseInt(val, 10);
+    return isNaN(parsed) ? 272 : Math.max(180, Math.min(parsed, 400));
+  };
+
+  const circleDiameter = getCircleDiameter(artworkSizeRaw);
+  const outerDiameter = Math.round(circleDiameter * 1.19);
+  const innerDiameter = Math.round(circleDiameter * 1.085);
+  const auraDiameter = Math.round(circleDiameter * 1.25);
+  const charmDiameter = Math.round(circleDiameter * 1.14);
+
   return (
     <section
       id={id}
@@ -96,46 +120,195 @@ export default function HomeSection({ id, wedding, formattedDate }) {
           </p>
         </motion.div>
 
-        {/* Couple artwork with rose floral aura */}
+        {/* Animated Center Couple Photo Circle */}
         <motion.div
           initial={{ opacity: 0, scale: 0.88 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 1.1, delay: 0.35, ease: [0.16, 1, 0.3, 1] }}
-          className="relative"
+          className="relative flex items-center justify-center my-3 select-none"
         >
-          {/* Outer floral ring */}
-          <div className="w-[min(72vw,280px)] h-[min(72vw,280px)] rounded-full p-[4px] bg-gradient-to-br from-[#FF8FAB] via-[#E85D75] to-[#E11D48] shadow-[0_12px_45px_rgba(232,93,117,0.3)]">
-            <div className="w-full h-full rounded-full p-[4px] bg-white">
-              <div className="w-full h-full rounded-full overflow-hidden shadow-inner">
+          {/* 1. Luminous Breathing Aurora Halo */}
+          <motion.div
+            animate={{
+              scale: [1, 1.14, 1],
+              opacity: [0.35, 0.7, 0.35],
+            }}
+            transition={{
+              duration: 4.2,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+            className="absolute rounded-full blur-[28px] pointer-events-none"
+            style={{
+              width: `min(90vw, ${auraDiameter}px)`,
+              height: `min(90vw, ${auraDiameter}px)`,
+              background:
+                'radial-gradient(circle, rgba(232,93,117,0.42) 0%, rgba(246,211,101,0.28) 45%, rgba(232,93,117,0) 72%)',
+            }}
+          />
+
+          {/* 2. Outer Rotating Floral / Mandala Ring (Clockwise, 38s) */}
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 38, repeat: Infinity, ease: 'linear' }}
+            className="absolute rounded-full pointer-events-none"
+            style={{
+              width: `min(86vw, ${outerDiameter}px)`,
+              height: `min(86vw, ${outerDiameter}px)`,
+            }}
+          >
+            <svg viewBox="0 0 320 320" className="w-full h-full overflow-visible">
+              <circle
+                cx="160"
+                cy="160"
+                r="152"
+                fill="none"
+                stroke="url(#roseGoldCircleGrad)"
+                strokeWidth="1.5"
+                strokeDasharray="4 8"
+                opacity="0.8"
+              />
+              {/* 12 Celestial Golden & Rose Beads */}
+              {Array.from({ length: 12 }).map((_, i) => {
+                const angle = (i * 30 * Math.PI) / 180;
+                const x = 160 + 152 * Math.cos(angle);
+                const y = 160 + 152 * Math.sin(angle);
+                const isCardinal = i % 3 === 0;
+                return (
+                  <circle
+                    key={i}
+                    cx={x}
+                    cy={y}
+                    r={isCardinal ? 3.5 : 2}
+                    fill={isCardinal ? '#D4AF37' : '#E85D75'}
+                    opacity={isCardinal ? 0.95 : 0.75}
+                  />
+                );
+              })}
+              <defs>
+                <linearGradient id="roseGoldCircleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#D4AF37" />
+                  <stop offset="50%" stopColor="#E85D75" />
+                  <stop offset="100%" stopColor="#F6D365" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </motion.div>
+
+          {/* 3. Inner Counter-Rotating Orbit Ring (Counter-Clockwise, 24s) */}
+          <motion.div
+            animate={{ rotate: -360 }}
+            transition={{ duration: 24, repeat: Infinity, ease: 'linear' }}
+            className="absolute rounded-full border border-dashed border-[#E85D75]/40 pointer-events-none"
+            style={{
+              width: `min(78vw, ${innerDiameter}px)`,
+              height: `min(78vw, ${innerDiameter}px)`,
+            }}
+          />
+
+          {/* 4. Orbiting Sparkling Charms (Clockwise, 32s) */}
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 32, repeat: Infinity, ease: 'linear' }}
+            className="absolute pointer-events-none"
+            style={{
+              width: `min(82vw, ${charmDiameter}px)`,
+              height: `min(82vw, ${charmDiameter}px)`,
+            }}
+          >
+            {/* Top Cardinal: Floating Heart */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
+              <motion.div
+                animate={{ scale: [0.85, 1.2, 0.85] }}
+                transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+                className="w-5 h-5 rounded-full bg-white/95 border border-[#FCE4E8] shadow-[0_2px_10px_rgba(232,93,117,0.3)] flex items-center justify-center"
+              >
+                <Heart className="w-2.5 h-2.5 fill-[#E85D75] text-[#E85D75]" />
+              </motion.div>
+            </div>
+
+            {/* Right Cardinal: Golden Star */}
+            <div className="absolute top-1/2 right-0 translate-x-1/2 -translate-y-1/2">
+              <motion.div
+                animate={{ scale: [0.85, 1.25, 0.85] }}
+                transition={{ duration: 2.2, repeat: Infinity, delay: 0.55, ease: 'easeInOut' }}
+                className="w-5 h-5 rounded-full bg-white/95 border border-[#FDF2D0] shadow-[0_2px_10px_rgba(212,175,55,0.35)] flex items-center justify-center text-[#D4AF37]"
+              >
+                <Sparkles className="w-2.5 h-2.5 fill-[#D4AF37] text-[#D4AF37]" />
+              </motion.div>
+            </div>
+
+            {/* Bottom Cardinal: Floating Heart */}
+            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2">
+              <motion.div
+                animate={{ scale: [0.85, 1.2, 0.85] }}
+                transition={{ duration: 2.2, repeat: Infinity, delay: 1.1, ease: 'easeInOut' }}
+                className="w-5 h-5 rounded-full bg-white/95 border border-[#FCE4E8] shadow-[0_2px_10px_rgba(232,93,117,0.3)] flex items-center justify-center"
+              >
+                <Heart className="w-2.5 h-2.5 fill-[#E85D75] text-[#E85D75]" />
+              </motion.div>
+            </div>
+
+            {/* Left Cardinal: Golden Star */}
+            <div className="absolute top-1/2 left-0 -translate-x-1/2 -translate-y-1/2">
+              <motion.div
+                animate={{ scale: [0.85, 1.25, 0.85] }}
+                transition={{ duration: 2.2, repeat: Infinity, delay: 1.65, ease: 'easeInOut' }}
+                className="w-5 h-5 rounded-full bg-white/95 border border-[#FDF2D0] shadow-[0_2px_10px_rgba(212,175,55,0.35)] flex items-center justify-center text-[#D4AF37]"
+              >
+                <Sparkles className="w-2.5 h-2.5 fill-[#D4AF37] text-[#D4AF37]" />
+              </motion.div>
+            </div>
+          </motion.div>
+
+          {/* 5. Center Levitating Couple Photo Circle */}
+          <motion.div
+            animate={{
+              y: [-4, 4, -4],
+            }}
+            transition={{
+              duration: 4.8,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+            whileHover={{ scale: 1.035 }}
+            className="relative z-10 rounded-full p-[4px] bg-gradient-to-tr from-[#E85D75] via-[#FDA085] to-[#F6D365] shadow-[0_16px_50px_rgba(232,93,117,0.35),0_0_28px_rgba(246,211,101,0.22)] cursor-pointer group"
+            style={{
+              width: `min(72vw, ${circleDiameter}px)`,
+              height: `min(72vw, ${circleDiameter}px)`,
+            }}
+          >
+            {/* Crisp Inner White Ring */}
+            <div className="w-full h-full rounded-full p-[4px] bg-white shadow-inner">
+              <div className="relative w-full h-full rounded-full overflow-hidden shadow-inner bg-[#FFF0F3]">
                 <img
                   src={artworkUrl}
                   alt={`${wedding.groom_name} & ${wedding.bride_name}`}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full transition-transform duration-500 group-hover:scale-108"
+                  style={{
+                    objectFit: artworkFit,
+                    objectPosition: artworkPosition,
+                    transform: `scale(${artworkZoom / 100})`,
+                  }}
                   loading="eager"
+                />
+
+                {/* Shimmer Light Sweeping Accent */}
+                <motion.div
+                  animate={{
+                    x: ['-140%', '240%'],
+                  }}
+                  transition={{
+                    duration: 2.2,
+                    repeat: Infinity,
+                    repeatDelay: 4.5,
+                    ease: 'easeInOut',
+                  }}
+                  className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[-25deg] pointer-events-none"
                 />
               </div>
             </div>
-          </div>
-
-          {/* Delicate dashed ring */}
-          <div
-            className="absolute inset-[-12px] rounded-full border border-dashed border-[#E85D75]/30"
-            style={{ animation: 'spin 35s linear infinite' }}
-          />
-
-          {/* Floating mini hearts at cardinal points */}
-          {[0, 90, 180, 270].map(deg => (
-            <div
-              key={deg}
-              className="absolute w-3 h-3 rounded-full bg-white shadow-sm flex items-center justify-center border border-[#FCE4E8]"
-              style={{
-                top:  '50%', left: '50%',
-                transform: `rotate(${deg}deg) translateY(-${Math.min(36*window.innerWidth/100+12, 150)}px) translate(-50%, -50%)`,
-              }}
-            >
-              <Heart className="w-2 h-2 fill-[#E85D75] text-[#E85D75]" />
-            </div>
-          ))}
+          </motion.div>
         </motion.div>
 
         {/* Couple names (Romantic Calligraphy Serif) */}

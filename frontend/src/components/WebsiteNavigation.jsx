@@ -8,7 +8,6 @@ const NAV_SECTIONS = [
   { id: 'marriage',  label: 'MARRIAGE' },
   { id: 'reception', label: 'RECEPTION' },
   { id: 'venue',     label: 'VENUE' },
-  { id: 'gallery',   label: 'GALLERY' },
   { id: 'blessings', label: 'BLESSINGS' },
 ];
 
