@@ -14,6 +14,7 @@ import {
   Image as ImageIcon,
   Loader2,
   Sliders,
+} from 'lucide-react';
 import { API_BASE, resolveMediaUrl } from '../../services/api';
 
 const slugify = (groom, bride) => {
