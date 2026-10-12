@@ -15,10 +15,17 @@ function VenueCard({ title, data }) {
     >
       {/* Card header */}
       <div className="px-6 py-4 border-b border-[#FCE4E8] bg-[#FCE4E8]/50">
-        <span className="font-cinzel text-[10px] font-semibold tracking-[0.25em] uppercase text-[#E85D75]">
-          {title}
-        </span>
-        <h3 className="font-serif italic text-xl md:text-2xl font-bold mt-0.5 text-[#8F3045]">
+        <div className="flex items-center justify-between flex-wrap gap-1">
+          <span className="font-cinzel text-[10px] font-semibold tracking-[0.25em] uppercase text-[#E85D75]">
+            {title}
+          </span>
+          {(data.ceremony_time || data.reception_time) && (
+            <span className="font-sans text-[11px] font-semibold text-[#8F3045]/75 bg-white/80 px-2.5 py-0.5 rounded-full border border-[#FCE4E8]">
+              {data.ceremony_time || data.reception_time}
+            </span>
+          )}
+        </div>
+        <h3 className="font-serif italic text-xl md:text-2xl font-bold mt-1 text-[#8F3045]">
           {data.venue_name}
         </h3>
       </div>
