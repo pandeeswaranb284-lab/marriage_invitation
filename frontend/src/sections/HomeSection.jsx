@@ -3,13 +3,33 @@ import { motion } from 'framer-motion';
 import { Calendar, Heart, Sparkles } from 'lucide-react';
 import { resolveMediaUrl } from '../services/api';
 
-function CountdownTimer({ weddingDate }) {
+function DualCountdownTimer({ wedding }) {
+  const [activeTab, setActiveTab] = useState('marriage'); // 'marriage' | 'reception'
+
+  const marriageDate = wedding?.marriage_details?.ceremony_date || wedding?.wedding_date;
+  const receptionDate = wedding?.reception_details?.reception_date || wedding?.wedding_date;
+
+  const targetDate = activeTab === 'marriage' ? marriageDate : receptionDate;
+  const targetLabel = activeTab === 'marriage' ? 'Marriage Muhurtham' : 'Wedding Reception';
+  const targetTamil = activeTab === 'marriage' ? 'திருமண சுப முகூர்த்தம்' : 'வரவேற்பு நன்னாள்';
+  const targetTime = activeTab === 'marriage'
+    ? (wedding?.marriage_details?.muhurtham_time || wedding?.wedding_time || 'காலை 9:00 AM - 10:30 AM')
+    : (wedding?.reception_details?.reception_time || 'மாலை 6:30 PM முதல்');
+
   const [time, setTime] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, done: false });
 
   useEffect(() => {
     const calc = () => {
-      const diff = new Date(weddingDate).getTime() - Date.now();
-      if (diff <= 0) { setTime(t => ({ ...t, done: true })); return; }
+      if (!targetDate) return;
+      const diff = new Date(targetDate).getTime() - Date.now();
+      if (diff <= 0 && diff > -86400000) {
+        setTime({ days: 0, hours: 0, minutes: 0, seconds: 0, done: true, isToday: true });
+        return;
+      }
+      if (diff <= -86400000) {
+        setTime({ days: 0, hours: 0, minutes: 0, seconds: 0, done: true, isToday: false });
+        return;
+      }
       setTime({
         days:    Math.floor(diff / 86400000),
         hours:   Math.floor((diff % 86400000) / 3600000),
@@ -21,15 +41,7 @@ function CountdownTimer({ weddingDate }) {
     calc();
     const id = setInterval(calc, 1000);
     return () => clearInterval(id);
-  }, [weddingDate]);
-
-  if (time.done) {
-    return (
-      <div className="py-4 px-8 rounded-2xl bg-[#FCE4E8] border border-[#E85D75]/40 text-center shadow-sm">
-        <p className="font-cinzel text-lg text-[#8F3045] tracking-widest">✦ TODAY IS THE WEDDING DAY ✦</p>
-      </div>
-    );
-  }
+  }, [targetDate]);
 
   const units = [
     { label: 'DAYS',    val: time.days },
@@ -39,26 +51,74 @@ function CountdownTimer({ weddingDate }) {
   ];
 
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-4 gap-2.5 sm:gap-4 max-w-md mx-auto">
-        {units.map(({ label, val }, i) => (
-          <motion.div
-            key={label}
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: i * 0.08 }}
-            className="flex flex-col items-center justify-center py-3.5 px-2 rounded-2xl bg-white/90 border border-[#FCE4E8] shadow-[0_4px_16px_rgba(232,93,117,0.08)]"
+    <div className="space-y-3.5">
+      {/* Event Selector Toggle */}
+      <div className="flex items-center justify-center gap-2">
+        <div className="inline-flex p-1 rounded-full bg-white/95 border border-[#FCE4E8] shadow-sm">
+          <button
+            type="button"
+            onClick={() => setActiveTab('marriage')}
+            className={`px-3.5 sm:px-4 py-1.5 rounded-full text-[11px] sm:text-xs font-cinzel font-bold tracking-wider transition-all duration-300 flex items-center gap-1.5 ${
+              activeTab === 'marriage'
+                ? 'bg-gradient-to-r from-[#E85D75] to-[#E11D48] text-white shadow-md'
+                : 'text-[#8F3045]/70 hover:text-[#8F3045]'
+            }`}
           >
-            <span className="font-serif text-2xl sm:text-3xl md:text-4xl font-bold text-[#8F3045] leading-none tabular-nums">
-              {String(val).padStart(2, '0')}
-            </span>
-            <span className="font-cinzel text-[8px] sm:text-[9px] text-[#8F3045]/60 font-semibold tracking-widest mt-1.5">
-              {label}
-            </span>
-          </motion.div>
-        ))}
+            <span>💍</span>
+            <span>Marriage Countdown</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('reception')}
+            className={`px-3.5 sm:px-4 py-1.5 rounded-full text-[11px] sm:text-xs font-cinzel font-bold tracking-wider transition-all duration-300 flex items-center gap-1.5 ${
+              activeTab === 'reception'
+                ? 'bg-gradient-to-r from-[#E85D75] to-[#E11D48] text-white shadow-md'
+                : 'text-[#8F3045]/70 hover:text-[#8F3045]'
+            }`}
+          >
+            <span>✨</span>
+            <span>Reception Countdown</span>
+          </button>
+        </div>
       </div>
+
+      {/* Target Title & Time Details */}
+      <div className="text-center space-y-0.5">
+        <span className="font-tamil text-xs text-[#8F3045]/70 font-semibold">{targetTamil}</span>
+        <p className="font-cinzel text-xs font-bold text-[#E85D75] tracking-widest uppercase">
+          COUNTING DOWN TO {targetLabel}
+        </p>
+        <span className="text-[11px] font-sans text-[#8F3045]/60 block">
+          {targetTime}
+        </span>
+      </div>
+
+      {time.done ? (
+        <div className="py-4 px-6 rounded-2xl bg-[#FCE4E8] border border-[#E85D75]/40 text-center shadow-sm">
+          <p className="font-cinzel text-sm sm:text-base text-[#8F3045] tracking-widest font-bold">
+            ✦ TODAY IS THE {activeTab === 'marriage' ? 'MARRIAGE CEREMONY' : 'WEDDING RECEPTION'} ✦
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-4 gap-2.5 sm:gap-4 max-w-md mx-auto">
+          {units.map(({ label, val }, i) => (
+            <motion.div
+              key={label}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+              className="flex flex-col items-center justify-center py-3.5 px-2 rounded-2xl bg-white/95 border border-[#FCE4E8] shadow-[0_4px_16px_rgba(232,93,117,0.08)]"
+            >
+              <span className="font-serif text-2xl sm:text-3xl md:text-4xl font-bold text-[#8F3045] leading-none tabular-nums">
+                {String(val).padStart(2, '0')}
+              </span>
+              <span className="font-cinzel text-[8px] sm:text-[9px] text-[#8F3045]/60 font-semibold tracking-widest mt-1.5">
+                {label}
+              </span>
+            </motion.div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -371,7 +431,7 @@ export default function HomeSection({ id, wedding, formattedDate }) {
           transition={{ delay: 0.85 }}
           className="w-full max-w-lg mt-1"
         >
-          <CountdownTimer weddingDate={wedding.wedding_date} />
+          <DualCountdownTimer wedding={wedding} />
         </motion.div>
 
         {/* Quote: "Two Hearts, Two Families, One Beautiful Beginning" */}

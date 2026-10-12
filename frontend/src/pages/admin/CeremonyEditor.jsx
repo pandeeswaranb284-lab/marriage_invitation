@@ -2,6 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { Save, CheckCircle2 } from 'lucide-react';
 import { API_BASE } from '../../services/api';
 
+const toDatetimeLocal = (dateStr) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
 export default function CeremonyEditor({ type = "both" }) {
   const [wedding, setWedding] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -43,6 +56,7 @@ export default function CeremonyEditor({ type = "both" }) {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
+          wedding_date: wedding.marriage_details?.ceremony_date || wedding.wedding_date,
           marriage_details: wedding.marriage_details,
           reception_details: wedding.reception_details,
         }),
@@ -117,6 +131,25 @@ export default function CeremonyEditor({ type = "both" }) {
                 placeholder="திருமண அழைப்பிதழ்"
                 className="w-full px-3 py-2 rounded bg-navy-900 border border-gold-500/30 text-white text-xs"
               />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gold-300 mb-1">
+                Marriage Date & Time (Countdown Target)
+              </label>
+              <input
+                type="datetime-local"
+                value={toDatetimeLocal(marriage.ceremony_date || wedding?.wedding_date)}
+                onChange={(e) => {
+                  const val = e.target.value ? new Date(e.target.value).toISOString() : null;
+                  updateMarriage('ceremony_date', val);
+                  setWedding(prev => ({ ...prev, wedding_date: val }));
+                }}
+                className="w-full px-3 py-2 rounded bg-navy-900 border border-gold-500/40 text-white text-xs focus:outline-none focus:border-gold-400"
+              />
+              <span className="text-[10px] text-gold-300/60 mt-0.5 block">
+                Controls the live countdown timer for Marriage Muhurtham.
+              </span>
             </div>
 
             <div>
@@ -206,6 +239,24 @@ export default function CeremonyEditor({ type = "both" }) {
                 placeholder="வரவேற்பு"
                 className="w-full px-3 py-2 rounded bg-navy-900 border border-gold-500/30 text-white text-xs"
               />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gold-300 mb-1">
+                Reception Date & Time (Countdown Target)
+              </label>
+              <input
+                type="datetime-local"
+                value={toDatetimeLocal(reception.reception_date)}
+                onChange={(e) => {
+                  const val = e.target.value ? new Date(e.target.value).toISOString() : null;
+                  updateReception('reception_date', val);
+                }}
+                className="w-full px-3 py-2 rounded bg-navy-900 border border-gold-500/40 text-white text-xs focus:outline-none focus:border-gold-400"
+              />
+              <span className="text-[10px] text-gold-300/60 mt-0.5 block">
+                Controls the live countdown timer for Wedding Reception.
+              </span>
             </div>
 
             <div>

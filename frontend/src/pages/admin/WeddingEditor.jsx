@@ -26,6 +26,19 @@ const slugify = (groom, bride) => {
   return clean || 'wedding-invitation';
 };
 
+const toDatetimeLocal = (dateStr) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
 export default function WeddingEditor() {
   const [wedding, setWedding] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -387,6 +400,44 @@ export default function WeddingEditor() {
               placeholder="e.g. Priya or Sneha"
               className="w-full px-4 py-2.5 rounded-lg bg-navy-950 border border-gold-500/40 text-white text-sm focus:outline-none focus:border-gold-400"
             />
+          </div>
+        </div>
+
+        {/* Wedding Date & Time Countdown Settings */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl bg-navy-950/70 border border-gold-500/30">
+          <div>
+            <label className="block text-xs font-cinzel tracking-wider text-gold-300 uppercase mb-1.5 flex items-center justify-between">
+              <span>Wedding Date & Time (Countdown Target)</span>
+              <span className="text-[10px] text-emerald-400 font-mono">Friday, 13 Nov 2026</span>
+            </label>
+            <input
+              type="datetime-local"
+              value={toDatetimeLocal(wedding?.wedding_date)}
+              onChange={(e) => {
+                const val = e.target.value ? new Date(e.target.value).toISOString() : null;
+                setWedding({ ...wedding, wedding_date: val });
+              }}
+              className="w-full px-4 py-2.5 rounded-lg bg-navy-900 border border-gold-500/40 text-white text-sm focus:outline-none focus:border-gold-400"
+            />
+            <p className="text-[11px] text-gold-200/50 mt-1">
+              Controls the live Marriage countdown timer on the invitation.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-cinzel tracking-wider text-gold-300 uppercase mb-1.5">
+              Wedding Display Time
+            </label>
+            <input
+              type="text"
+              value={wedding?.wedding_time || ''}
+              onChange={(e) => setWedding({ ...wedding, wedding_time: e.target.value })}
+              placeholder="e.g. காலை 9:00 AM - 10:30 AM"
+              className="w-full px-4 py-2.5 rounded-lg bg-navy-900 border border-gold-500/40 text-white text-sm focus:outline-none focus:border-gold-400"
+            />
+            <p className="text-[11px] text-gold-200/50 mt-1">
+              The auspicious timing text displayed on invitation cards.
+            </p>
           </div>
         </div>
 

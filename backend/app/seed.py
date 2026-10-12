@@ -33,8 +33,8 @@ def seed_default_data(db: Session):
     # 2. Default Wedding
     existing_wedding = db.query(Wedding).filter(Wedding.slug == "arun-priya").first()
     if not existing_wedding:
-        wedding_dt = datetime(2026, 11, 20, 9, 30, tzinfo=timezone.utc)
-        reception_dt = datetime(2026, 11, 20, 18, 30, tzinfo=timezone.utc)
+        wedding_dt = datetime(2026, 11, 13, 9, 30, tzinfo=timezone.utc)
+        reception_dt = datetime(2026, 11, 13, 18, 30, tzinfo=timezone.utc)
 
         wedding = Wedding(
             slug="arun-priya",
