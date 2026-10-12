@@ -20,12 +20,17 @@ export default function CeremonyEditor({ type = "both" }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState('');
+  const [activeTab, setActiveTab] = useState(type || 'both');
   const token = localStorage.getItem('admin_token');
   const apiBase = API_BASE;
 
   useEffect(() => {
     fetchWedding();
   }, []);
+
+  useEffect(() => {
+    if (type) setActiveTab(type);
+  }, [type]);
 
   const fetchWedding = async () => {
     try {
@@ -74,31 +79,24 @@ export default function CeremonyEditor({ type = "both" }) {
     }
   };
 
+  const updateMarriage = (field, val) => {
+    setWedding(prev => ({
+      ...prev,
+      marriage_details: { ...(prev?.marriage_details || {}), [field]: val },
+    }));
+  };
+
+  const updateReception = (field, val) => {
+    setWedding(prev => ({
+      ...prev,
+      reception_details: { ...(prev?.reception_details || {}), [field]: val },
+    }));
+  };
+
   if (loading) return <div className="p-8 text-gold-300 font-cinzel">Loading ceremonies...</div>;
 
   const marriage = wedding?.marriage_details || {};
   const reception = wedding?.reception_details || {};
-
-  const updateMarriage = (field, val) => {
-    setWedding({
-      ...wedding,
-      marriage_details: { ...wedding.marriage_details, [field]: val },
-    });
-  };
-
-  const updateReception = (field, val) => {
-    setWedding({
-      ...wedding,
-      reception_details: { ...wedding.reception_details, [field]: val },
-    });
-  };
-
-  const [activeTab, setActiveTab] = useState(type || 'both');
-
-  useEffect(() => {
-    if (type) setActiveTab(type);
-  }, [type]);
-
   const showMarriage = activeTab === 'marriage' || activeTab === 'both';
   const showReception = activeTab === 'reception' || activeTab === 'both';
 
