@@ -93,32 +93,92 @@ export default function CeremonyEditor({ type = "both" }) {
     });
   };
 
+  const [activeTab, setActiveTab] = useState(type || 'both');
+
+  useEffect(() => {
+    if (type) setActiveTab(type);
+  }, [type]);
+
+  const showMarriage = activeTab === 'marriage' || activeTab === 'both';
+  const showReception = activeTab === 'reception' || activeTab === 'both';
+
   return (
-    <div className="max-w-4xl space-y-8">
+    <div className="max-w-4xl space-y-6">
       <div className="border-b border-gold-500/20 pb-4">
         <span className="font-cinzel text-[10px] tracking-[0.25em] text-gold-400 uppercase">
-          Events & Venues
+          Countdown & Venue Management
         </span>
         <h2 className="font-cinzel text-xl md:text-2xl font-bold gold-text-gradient mt-1">
           MARRIAGE & RECEPTION CEREMONIES
         </h2>
+        <p className="text-xs text-gold-300/70 mt-1">
+          Set the exact Date and Time for both events to drive the live Marriage and Reception countdowns on the invitation card.
+        </p>
       </div>
 
       {notice && (
         <div className="p-3 rounded-lg bg-emerald-950/80 border border-emerald-500/40 text-emerald-200 text-xs flex items-center space-x-2">
-          <CheckCircle2 className="w-4 h-4" />
+          <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
           <span>{notice}</span>
         </div>
       )}
 
+      {/* Tabs */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-gold-500/20 pb-3">
+        <button
+          type="button"
+          onClick={() => setActiveTab('marriage')}
+          className={`px-4 py-2 rounded-xl text-xs font-cinzel font-bold tracking-wider transition-all flex items-center gap-2 ${
+            activeTab === 'marriage'
+              ? 'bg-gold-500 text-navy-950 shadow-gold-glow'
+              : 'bg-navy-950 text-gold-300/80 hover:bg-navy-900 border border-gold-500/30'
+          }`}
+        >
+          <span>💍</span>
+          <span>Marriage Muhurtham Countdown</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('reception')}
+          className={`px-4 py-2 rounded-xl text-xs font-cinzel font-bold tracking-wider transition-all flex items-center gap-2 ${
+            activeTab === 'reception'
+              ? 'bg-gold-500 text-navy-950 shadow-gold-glow'
+              : 'bg-navy-950 text-gold-300/80 hover:bg-navy-900 border border-gold-500/30'
+          }`}
+        >
+          <span>✨</span>
+          <span>Reception Countdown</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('both')}
+          className={`px-4 py-2 rounded-xl text-xs font-cinzel font-bold tracking-wider transition-all flex items-center gap-2 ${
+            activeTab === 'both'
+              ? 'bg-gold-500 text-navy-950 shadow-gold-glow'
+              : 'bg-navy-950 text-gold-300/80 hover:bg-navy-900 border border-gold-500/30'
+          }`}
+        >
+          <span>📋</span>
+          <span>View Both Events</span>
+        </button>
+      </div>
+
       <form onSubmit={handleSave} className="space-y-8 font-sans">
         {/* MARRIAGE SECTION */}
+        {showMarriage && (
         <div className="p-6 rounded-xl bg-navy-950/80 border border-gold-500/30 space-y-4">
-          <div className="border-b border-gold-500/20 pb-2">
-            <span className="font-tamil text-sm text-gold-300 block font-semibold">திருமண நிகழ்வு</span>
-            <h3 className="font-cinzel text-sm font-bold text-gold-400 uppercase">
-              1. Marriage Ceremony (Sacred & Traditional)
-            </h3>
+          <div className="border-b border-gold-500/20 pb-2 flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <span className="font-tamil text-sm text-gold-300 block font-semibold">திருமண நிகழ்வு</span>
+              <h3 className="font-cinzel text-sm font-bold text-gold-400 uppercase">
+                1. Marriage Ceremony (Sacred Muhurtham)
+              </h3>
+            </div>
+            <span className="text-[11px] font-mono px-2.5 py-1 rounded bg-gold-500/10 text-gold-300 border border-gold-500/30">
+              💍 Marriage Countdown Target
+            </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -219,14 +279,21 @@ export default function CeremonyEditor({ type = "both" }) {
             </div>
           </div>
         </div>
+        )}
 
         {/* RECEPTION SECTION */}
+        {showReception && (
         <div className="p-6 rounded-xl bg-navy-950/80 border border-gold-500/30 space-y-4">
-          <div className="border-b border-gold-500/20 pb-2">
-            <span className="font-tamil text-sm text-gold-300 block font-semibold">வரவேற்பு நிகழ்வு</span>
-            <h3 className="font-cinzel text-sm font-bold text-gold-400 uppercase">
-              2. Wedding Reception (Royal Evening Celebration)
-            </h3>
+          <div className="border-b border-gold-500/20 pb-2 flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <span className="font-tamil text-sm text-gold-300 block font-semibold">வரவேற்பு நிகழ்வு</span>
+              <h3 className="font-cinzel text-sm font-bold text-gold-400 uppercase">
+                2. Wedding Reception (Royal Evening Celebration)
+              </h3>
+            </div>
+            <span className="text-[11px] font-mono px-2.5 py-1 rounded bg-gold-500/10 text-gold-300 border border-gold-500/30">
+              ✨ Reception Countdown Target
+            </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -326,6 +393,7 @@ export default function CeremonyEditor({ type = "both" }) {
             </div>
           </div>
         </div>
+        )}
 
         <button
           type="submit"
