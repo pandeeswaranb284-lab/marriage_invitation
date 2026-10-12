@@ -54,11 +54,11 @@ class MarriageDetailSchema(BaseModel):
     id: Optional[int] = None
     title_tamil: Optional[str] = "திருமண அழைப்பிதழ்"
     title_english: Optional[str] = "MARRIAGE CEREMONY"
-    ceremony_date: datetime
+    ceremony_date: Optional[datetime] = None
     ceremony_time: Optional[str] = "9:00 AM to 10:30 AM"
     muhurtham_time: Optional[str] = "சுப முகூர்த்தம்: காலை 9:15 - 10:15 மணிக்குள்"
-    venue_name: str
-    venue_address: str
+    venue_name: Optional[str] = None
+    venue_address: Optional[str] = None
     landmark: Optional[str] = None
     parking_info: Optional[str] = None
     google_maps_url: Optional[str] = None
@@ -74,10 +74,10 @@ class ReceptionDetailSchema(BaseModel):
     id: Optional[int] = None
     title_tamil: Optional[str] = "வரவேற்பு"
     title_english: Optional[str] = "WEDDING RECEPTION"
-    reception_date: datetime
+    reception_date: Optional[datetime] = None
     reception_time: Optional[str] = "6:30 PM onwards"
-    venue_name: str
-    venue_address: str
+    venue_name: Optional[str] = None
+    venue_address: Optional[str] = None
     landmark: Optional[str] = None
     parking_info: Optional[str] = None
     google_maps_url: Optional[str] = None
