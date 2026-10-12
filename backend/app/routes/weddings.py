@@ -45,9 +45,13 @@ def generate_wedding_slug(groom: str, bride: str) -> str:
 
 
 def find_wedding_by_slug_or_default(db: Session, slug: str) -> Optional[Wedding]:
-    wedding = db.query(Wedding).filter(Wedding.slug == slug).first()
+    if slug and slug != "current":
+        wedding = db.query(Wedding).filter(Wedding.slug == slug).first()
+        if wedding:
+            return wedding
+    wedding = db.query(Wedding).filter(Wedding.slug == "k-prabhu-m-nalini").first()
     if not wedding:
-        wedding = db.query(Wedding).first()
+        wedding = db.query(Wedding).order_by(Wedding.id.asc()).first()
     return wedding
 
 
