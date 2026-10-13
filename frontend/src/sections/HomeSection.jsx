@@ -124,13 +124,27 @@ function DualCountdownTimer({ wedding }) {
 }
 
 export default function HomeSection({ id, wedding, formattedDate }) {
-  const artworkUrl = resolveMediaUrl(
-    wedding.couple_details?.artwork_url ||
+  const coupleDetails = wedding.couple_details || {};
+  const targetArtworkUrl = resolveMediaUrl(
+    coupleDetails.artwork_url ||
     wedding.gallery_images?.find(g => g.is_hero)?.image_url ||
-    'https://images.unsplash.com/photo-1583939003579-730e3918a45a?auto=format&fit=crop&w=800&q=80'
+    '/uploads/couple_Ghibli-Inspired_Indian_Wedding_Kiss_00e26a13.png'
   );
 
-  const coupleDetails = wedding.couple_details || {};
+  const [imgSrc, setImgSrc] = useState(targetArtworkUrl);
+
+  useEffect(() => {
+    if (targetArtworkUrl) {
+      setImgSrc(targetArtworkUrl);
+    }
+  }, [targetArtworkUrl]);
+
+  const handleImageError = () => {
+    if (!imgSrc.includes('unsplash') && !imgSrc.includes('1583939003579')) {
+      setImgSrc('https://images.unsplash.com/photo-1583939003579-730e3918a45a?auto=format&fit=crop&w=800&q=80');
+    }
+  };
+
   const artworkSizeRaw = coupleDetails.artwork_size || 'medium';
   const artworkFit = coupleDetails.artwork_fit || 'cover';
   const artworkPosition = coupleDetails.artwork_position || 'center';
@@ -140,12 +154,12 @@ export default function HomeSection({ id, wedding, formattedDate }) {
     if (!val) return 272;
     if (typeof val === 'number') return Math.max(180, Math.min(val, 400));
     const lower = String(val).toLowerCase();
-    if (lower === 'small') return 220;
-    if (lower === 'medium') return 272;
-    if (lower === 'large') return 324;
-    if (lower === 'xlarge') return 376;
+    if (lower === 'small') return 210;
+    if (lower === 'medium') return 260;
+    if (lower === 'large') return 310;
+    if (lower === 'xlarge') return 360;
     const parsed = parseInt(val, 10);
-    return isNaN(parsed) ? 272 : Math.max(180, Math.min(parsed, 400));
+    return isNaN(parsed) ? 260 : Math.max(180, Math.min(parsed, 400));
   };
 
   const circleDiameter = getCircleDiameter(artworkSizeRaw);
@@ -157,7 +171,7 @@ export default function HomeSection({ id, wedding, formattedDate }) {
   return (
     <section
       id={id}
-      className="relative min-h-screen flex flex-col items-center justify-center pt-[90px] pb-20 px-4 overflow-hidden bg-[#FFF7F9]"
+      className="relative min-h-screen flex flex-col items-center justify-start pt-20 sm:pt-24 pb-16 sm:pb-20 px-3 sm:px-4 overflow-x-hidden bg-[#FFF7F9]"
     >
       {/* Background soft blush ambient glows */}
       <div className="absolute inset-0 pointer-events-none">
@@ -165,14 +179,14 @@ export default function HomeSection({ id, wedding, formattedDate }) {
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[80vw] h-[45vh] bg-[#FFF0F3] opacity-60 rounded-full blur-[80px]" />
       </div>
 
-      <div className="relative z-10 w-full max-w-4xl mx-auto flex flex-col items-center gap-7 text-center">
+      <div className="relative z-20 w-full max-w-4xl mx-auto flex flex-col items-center gap-4 sm:gap-6 md:gap-7 text-center">
 
         {/* Auspicious header */}
         <motion.div
           initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.9, delay: 0.2 }}
-          className="space-y-1.5"
+          className="space-y-1 sm:space-y-1.5"
         >
           <p className="font-tamil text-sm md:text-base text-[#8F3045]/85 font-medium">
             {wedding.opening_blessing || '॥ ஸ்ரீ விநாயகர் துணை ॥'}
@@ -187,7 +201,11 @@ export default function HomeSection({ id, wedding, formattedDate }) {
           initial={{ opacity: 0, scale: 0.88 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 1.1, delay: 0.35, ease: [0.16, 1, 0.3, 1] }}
-          className="relative flex items-center justify-center my-3 select-none"
+          className="relative flex items-center justify-center my-2 sm:my-3 select-none shrink-0"
+          style={{
+            width: `min(88vw, ${auraDiameter}px)`,
+            height: `min(88vw, ${auraDiameter}px)`,
+          }}
         >
           {/* 1. Luminous Breathing Aurora Halo */}
           <motion.div
@@ -200,10 +218,10 @@ export default function HomeSection({ id, wedding, formattedDate }) {
               repeat: Infinity,
               ease: 'easeInOut',
             }}
-            className="absolute rounded-full blur-[28px] pointer-events-none"
+            className="absolute inset-0 m-auto rounded-full blur-[28px] pointer-events-none"
             style={{
-              width: `min(90vw, ${auraDiameter}px)`,
-              height: `min(90vw, ${auraDiameter}px)`,
+              width: `min(88vw, ${auraDiameter}px)`,
+              height: `min(88vw, ${auraDiameter}px)`,
               background:
                 'radial-gradient(circle, rgba(232,93,117,0.42) 0%, rgba(246,211,101,0.28) 45%, rgba(232,93,117,0) 72%)',
             }}
@@ -213,10 +231,10 @@ export default function HomeSection({ id, wedding, formattedDate }) {
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 38, repeat: Infinity, ease: 'linear' }}
-            className="absolute rounded-full pointer-events-none"
+            className="absolute inset-0 m-auto rounded-full pointer-events-none"
             style={{
-              width: `min(86vw, ${outerDiameter}px)`,
-              height: `min(86vw, ${outerDiameter}px)`,
+              width: `min(84vw, ${outerDiameter}px)`,
+              height: `min(84vw, ${outerDiameter}px)`,
             }}
           >
             <svg viewBox="0 0 320 320" className="w-full h-full overflow-visible">
@@ -261,10 +279,10 @@ export default function HomeSection({ id, wedding, formattedDate }) {
           <motion.div
             animate={{ rotate: -360 }}
             transition={{ duration: 24, repeat: Infinity, ease: 'linear' }}
-            className="absolute rounded-full border border-dashed border-[#E85D75]/40 pointer-events-none"
+            className="absolute inset-0 m-auto rounded-full border border-dashed border-[#E85D75]/40 pointer-events-none"
             style={{
-              width: `min(78vw, ${innerDiameter}px)`,
-              height: `min(78vw, ${innerDiameter}px)`,
+              width: `min(76vw, ${innerDiameter}px)`,
+              height: `min(76vw, ${innerDiameter}px)`,
             }}
           />
 
@@ -272,10 +290,10 @@ export default function HomeSection({ id, wedding, formattedDate }) {
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 32, repeat: Infinity, ease: 'linear' }}
-            className="absolute pointer-events-none"
+            className="absolute inset-0 m-auto pointer-events-none"
             style={{
-              width: `min(82vw, ${charmDiameter}px)`,
-              height: `min(82vw, ${charmDiameter}px)`,
+              width: `min(80vw, ${charmDiameter}px)`,
+              height: `min(80vw, ${charmDiameter}px)`,
             }}
           >
             {/* Top Cardinal: Floating Heart */}
@@ -334,25 +352,26 @@ export default function HomeSection({ id, wedding, formattedDate }) {
               ease: 'easeInOut',
             }}
             whileHover={{ scale: 1.035 }}
-            className="relative z-10 rounded-full p-[4px] bg-gradient-to-tr from-[#E85D75] via-[#FDA085] to-[#F6D365] shadow-[0_16px_50px_rgba(232,93,117,0.35),0_0_28px_rgba(246,211,101,0.22)] cursor-pointer group"
+            className="relative z-10 rounded-full p-[3px] sm:p-[4px] bg-gradient-to-tr from-[#E85D75] via-[#FDA085] to-[#F6D365] shadow-[0_14px_45px_rgba(232,93,117,0.35),0_0_26px_rgba(246,211,101,0.22)] cursor-pointer group shrink-0 aspect-square"
             style={{
-              width: `min(72vw, ${circleDiameter}px)`,
-              height: `min(72vw, ${circleDiameter}px)`,
+              width: `min(68vw, ${circleDiameter}px)`,
+              height: `min(68vw, ${circleDiameter}px)`,
             }}
           >
             {/* Crisp Inner White Ring */}
-            <div className="w-full h-full rounded-full p-[4px] bg-white shadow-inner">
+            <div className="w-full h-full rounded-full p-[3px] sm:p-[4px] bg-white shadow-inner">
               <div className="relative w-full h-full rounded-full overflow-hidden shadow-inner bg-[#FFF0F3]">
                 <img
-                  src={artworkUrl}
-                  alt={`${wedding.groom_name} & ${wedding.bride_name}`}
-                  className="w-full h-full transition-transform duration-500 group-hover:scale-108"
+                  src={imgSrc}
+                  alt={`${wedding.groom_name || 'Groom'} & ${wedding.bride_name || 'Bride'}`}
+                  className="w-full h-full transition-transform duration-500 group-hover:scale-108 select-none"
                   style={{
                     objectFit: artworkFit,
                     objectPosition: artworkPosition,
                     transform: `scale(${artworkZoom / 100})`,
                   }}
                   loading="eager"
+                  onError={handleImageError}
                 />
 
                 {/* Shimmer Light Sweeping Accent */}

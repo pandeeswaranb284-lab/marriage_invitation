@@ -175,7 +175,7 @@ export default function FloatingFlowersAndButterflies({
   return (
     <div
       aria-hidden="true"
-      className="fixed inset-0 pointer-events-none overflow-hidden z-20"
+      className="fixed inset-0 pointer-events-none overflow-hidden z-10"
       style={{ contain: 'paint' }}
     >
       {/* ── 1. Floating Falling Blossoms ── */}
