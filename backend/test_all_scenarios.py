@@ -1,9 +1,16 @@
+import sys
 import json
 from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 from app.main import app
 from app.services.event_bus import event_bus
 from app.auth.security import create_access_token
+
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
 
 client = TestClient(app)
 admin_token = create_access_token(subject="admin@wedding.com")
@@ -24,7 +31,7 @@ assert res.status_code == 200
 assert not q.empty()
 evt = json.loads(q.get_nowait())
 assert evt["type"] == "wedding_updated"
-print("✓ Core details updated & broadcasted:", evt["source"])
+print("[PASS] Core details updated & broadcasted:", evt["source"])
 
 print("--- 2. Testing Couple & Artwork Update ---")
 res = client.put(f"/api/weddings/admin/{slug}", json={
@@ -41,7 +48,7 @@ assert res.status_code == 200
 assert not q.empty()
 evt = json.loads(q.get_nowait())
 assert evt["type"] == "wedding_updated"
-print("✓ Couple details updated & broadcasted")
+print("[PASS] Couple details updated & broadcasted")
 
 print("--- 3. Testing Families & Blessings Update ---")
 res = client.put(f"/api/weddings/admin/{slug}", json={
@@ -55,7 +62,7 @@ assert res.status_code == 200
 assert not q.empty()
 evt = json.loads(q.get_nowait())
 assert evt["type"] == "wedding_updated"
-print("✓ Family details updated & broadcasted")
+print("[PASS] Family details updated & broadcasted")
 
 print("--- 4. Testing Ceremony & Reception Details Update ---")
 res = client.put(f"/api/weddings/admin/{slug}", json={
@@ -74,7 +81,7 @@ assert res.status_code == 200
 assert not q.empty()
 evt = json.loads(q.get_nowait())
 assert evt["type"] == "wedding_updated"
-print("✓ Ceremonies & reception details updated & broadcasted")
+print("[PASS] Ceremonies & reception details updated & broadcasted")
 
 print("--- 5. Testing Theme & Language Preferences Update ---")
 res = client.put(f"/api/weddings/admin/{slug}", json={
@@ -86,7 +93,7 @@ assert res.status_code == 200
 assert not q.empty()
 evt = json.loads(q.get_nowait())
 assert evt["type"] == "wedding_updated"
-print("✓ Theme preferences updated & broadcasted")
+print("[PASS] Theme preferences updated & broadcasted")
 
 print("--- 6. Testing Gallery Image Management ---")
 img_res = client.post(f"/api/weddings/admin/{slug}/gallery", json={
@@ -101,14 +108,14 @@ assert not q.empty()
 evt = json.loads(q.get_nowait())
 assert evt["source"] == "gallery_added"
 img_id = img_res.json()["id"]
-print("✓ Gallery image added & broadcasted, ID:", img_id)
+print("[PASS] Gallery image added & broadcasted, ID:", img_id)
 
 del_res = client.delete(f"/api/weddings/admin/gallery/{img_id}", headers=headers)
 assert del_res.status_code == 200
 assert not q.empty()
 evt = json.loads(q.get_nowait())
 assert evt["source"] == "gallery_deleted"
-print("✓ Gallery image deleted & broadcasted")
+print("[PASS] Gallery image deleted & broadcasted")
 
 print("--- 7. Testing Public Endpoint Freshness & Cache Headers ---")
 pub_res = client.get(f"/api/weddings/public/{slug}")
@@ -122,4 +129,5 @@ assert pub_data["couple_details"]["groom_education"] == "M.Sc., MBA"
 assert pub_data["marriage_details"]["venue_name"] == "Arulmigu Sri Angalammman Shrine"
 
 event_bus.unsubscribe(slug, q)
-print("\n🎉 ALL 7 TEST SCENARIOS PASSED WITH 100% SUCCESS!")
+print("\n[SUCCESS] ALL 7 TEST SCENARIOS PASSED WITH 100% SUCCESS!")
+
