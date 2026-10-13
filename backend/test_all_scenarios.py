@@ -23,7 +23,7 @@ print("--- 1. Testing Core Wedding Details Update ---")
 res = client.put(f"/api/weddings/admin/{slug}", json={
     "groom_name": "K. Prabhu",
     "bride_name": "M. Nalini",
-    "opening_blessing": "॥ ஸ்ரீ விநாயகர் துணை ॥",
+    "opening_blessing": "॥ ஸ்ரீ முனுசாமி துணை ॥",
     "wedding_time": "காலை 7:30 AM - 9:00 AM",
     "tagline": "Two Hearts, One Sacred Bond, A Beautiful New Beginning."
 }, headers=headers)
