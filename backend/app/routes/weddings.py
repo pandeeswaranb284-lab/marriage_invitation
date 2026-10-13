@@ -23,6 +23,7 @@ from app.models.guest_wish import GuestWish
 from app.models.marriage_detail import MarriageDetail
 from app.models.reception_detail import ReceptionDetail
 from app.models.rsvp import RSVP
+from app.models.uploaded_file import UploadedFile
 from app.models.wedding import Wedding
 from app.schemas.wedding import (
     CoupleDetailSchema,
@@ -54,7 +55,16 @@ def find_wedding_by_slug_or_default(db: Session, slug: str) -> Optional[Wedding]
         wedding = db.query(Wedding).filter(Wedding.slug == slug).first()
         if wedding:
             return wedding
+        norm = slug.replace("-", "").lower()
+        if "prabhu" in norm and "nalini" in norm:
+            wedding = db.query(Wedding).filter(
+                (Wedding.slug == "k-prabhu-m-nalini") | (Wedding.slug == "prabhu-nalini")
+            ).first()
+            if wedding:
+                return wedding
     wedding = db.query(Wedding).filter(Wedding.slug == "k-prabhu-m-nalini").first()
+    if not wedding:
+        wedding = db.query(Wedding).filter(Wedding.slug == "prabhu-nalini").first()
     if not wedding:
         wedding = db.query(Wedding).order_by(Wedding.id.asc()).first()
     return wedding
@@ -326,6 +336,25 @@ async def upload_music(
     with open(target_path, "wb") as f:
         f.write(contents)
 
+    # Persist in database so it survives container restarts and serverless deployments
+    try:
+        mime_type = file.content_type or "audio/mpeg"
+        existing_file = db.query(UploadedFile).filter(UploadedFile.filename == unique_filename).first()
+        if existing_file:
+            existing_file.data = contents
+            existing_file.content_type = mime_type
+            existing_file.file_size = len(contents)
+        else:
+            db.add(UploadedFile(
+                filename=unique_filename,
+                content_type=mime_type,
+                file_size=len(contents),
+                data=contents,
+            ))
+        db.commit()
+    except Exception as db_err:
+        db.rollback()
+
     relative_url = f"/uploads/{unique_filename}"
 
     # Auto-update current wedding's music_url and enable music
@@ -381,6 +410,25 @@ async def upload_artwork(
         except Exception:
             pass
 
+    # Persist in authoritative database so it survives container restarts, rebuilds & redeployments
+    try:
+        mime_type = file.content_type or "image/png"
+        existing_file = db.query(UploadedFile).filter(UploadedFile.filename == unique_filename).first()
+        if existing_file:
+            existing_file.data = contents
+            existing_file.content_type = mime_type
+            existing_file.file_size = len(contents)
+        else:
+            db.add(UploadedFile(
+                filename=unique_filename,
+                content_type=mime_type,
+                file_size=len(contents),
+                data=contents,
+            ))
+        db.commit()
+    except Exception as db_err:
+        db.rollback()
+
     relative_url = f"/uploads/{unique_filename}"
 
     wedding = db.query(Wedding).first()
@@ -405,6 +453,7 @@ async def upload_artwork(
         "saved_as": unique_filename,
         "size": len(contents),
     }
+
 
 
 @router.put("/admin/{slug}")

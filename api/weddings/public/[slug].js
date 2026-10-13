@@ -24,13 +24,13 @@ const VERIFIED_WEDDING_DATA = {
   is_published: true,
   couple_details: {
     id: 1,
-    artwork_url: "/uploads/couple_Ghibli-Inspired_Indian_Wedding_Kiss_00e26a13.png",
-    artwork_size: "medium",
+    artwork_url: "/uploads/couple_akka_7ca99298.png",
+    artwork_size: "large",
     artwork_fit: "cover",
     artwork_position: "top",
     artwork_zoom: 100,
     groom_name: "K. Prabhu",
-    groom_father: "Mr. M. Kalathi (Late)",
+    groom_father: "Mr. M. Kalathi",
     groom_mother: "Mrs. K. Vijaya",
     groom_education: "M.Sc., MBA",
     groom_profession: "",
@@ -162,7 +162,7 @@ export default async function handler(request) {
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000); // 8s timeout to accommodate Render warm-up
+    const timeout = setTimeout(() => controller.abort(), 12000); // 12s timeout to accommodate Render warm-up
 
     const upstreamRes = await fetch(targetUrl, {
       signal: controller.signal,

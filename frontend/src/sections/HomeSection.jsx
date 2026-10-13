@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Heart, Sparkles } from 'lucide-react';
-import { resolveMediaUrl } from '../services/api';
+import { resolveMediaUrl, getBackendOrigin } from '../services/api';
 
 function DualCountdownTimer({ wedding }) {
   const [activeTab, setActiveTab] = useState('marriage'); // 'marriage' | 'reception'
@@ -128,7 +128,7 @@ export default function HomeSection({ id, wedding, formattedDate }) {
   const targetArtworkUrl = resolveMediaUrl(
     coupleDetails.artwork_url ||
     wedding.gallery_images?.find(g => g.is_hero)?.image_url ||
-    '/uploads/couple_Ghibli-Inspired_Indian_Wedding_Kiss_00e26a13.png'
+    '/uploads/couple_akka_7ca99298.png'
   );
 
   const [imgSrc, setImgSrc] = useState(targetArtworkUrl);
@@ -140,6 +140,15 @@ export default function HomeSection({ id, wedding, formattedDate }) {
   }, [targetArtworkUrl]);
 
   const handleImageError = () => {
+    // If relative /uploads/ path failed on current domain, retry once with direct backend origin
+    const backendOrigin = getBackendOrigin();
+    if (typeof imgSrc === 'string' && imgSrc.startsWith('/uploads/') && backendOrigin) {
+      const fallbackUrl = `${backendOrigin}${imgSrc}`;
+      if (imgSrc !== fallbackUrl) {
+        setImgSrc(fallbackUrl);
+        return;
+      }
+    }
     if (!imgSrc.includes('unsplash') && !imgSrc.includes('1583939003579')) {
       setImgSrc('https://images.unsplash.com/photo-1583939003579-730e3918a45a?auto=format&fit=crop&w=800&q=80');
     }

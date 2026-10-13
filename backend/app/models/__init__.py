@@ -5,6 +5,7 @@ from app.models.guest_wish import GuestWish
 from app.models.marriage_detail import MarriageDetail
 from app.models.reception_detail import ReceptionDetail
 from app.models.rsvp import RSVP
+from app.models.uploaded_file import UploadedFile
 from app.models.user import User
 from app.models.wedding import Wedding
 
@@ -18,4 +19,5 @@ __all__ = [
     "GalleryImage",
     "RSVP",
     "GuestWish",
+    "UploadedFile",
 ]
