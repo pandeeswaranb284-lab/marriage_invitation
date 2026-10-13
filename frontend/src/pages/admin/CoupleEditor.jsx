@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Save, CheckCircle2, Image as ImageIcon, Upload, AlertCircle, Loader2, Sparkles, RefreshCw, Sliders } from 'lucide-react';
+import { Save, CheckCircle2, Image as ImageIcon, Upload, AlertCircle, Loader2, Sparkles, RefreshCw, Sliders, ExternalLink } from 'lucide-react';
 import { API_BASE, resolveMediaUrl } from '../../services/api';
+import { notifyAdminUpdate } from '../../services/realtimeSync';
 
 export default function CoupleEditor() {
   const [wedding, setWedding] = useState(null);
@@ -9,6 +10,7 @@ export default function CoupleEditor() {
   const [notice, setNotice] = useState('');
   const [uploadingArtwork, setUploadingArtwork] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [isDirty, setIsDirty] = useState(false);
   const fileInputRef = useRef(null);
   const token = localStorage.getItem('admin_token');
   const apiBase = API_BASE;
@@ -44,7 +46,8 @@ export default function CoupleEditor() {
 
       const data = await res.json();
       updateCoupleField('artwork_url', data.url);
-      setNotice(`Couple photo "${file.name}" uploaded successfully! It is now set as the center image.`);
+      notifyAdminUpdate(wedding?.slug || 'current', { source: 'artwork_upload' });
+      setNotice(`Couple photo "${file.name}" uploaded successfully & synchronized live across all devices!`);
     } catch (err) {
       setUploadError(err.message || 'Image upload failed. Please try a JPG or PNG file.');
     } finally {
@@ -75,7 +78,8 @@ export default function CoupleEditor() {
     setNotice('');
 
     try {
-      const res = await fetch(`${apiBase}/weddings/admin/${wedding.slug}`, {
+      const targetSlug = wedding?.slug || 'k-prabhu-m-nalini';
+      const res = await fetch(`${apiBase}/weddings/admin/${targetSlug}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -87,12 +91,15 @@ export default function CoupleEditor() {
       });
 
       if (res.ok) {
-        setNotice('Couple information & artwork updated successfully!');
+        setIsDirty(false);
+        notifyAdminUpdate(targetSlug, { source: 'couple_editor' });
+        setNotice('✓ Couple information & artwork saved and synchronized live across all devices!');
       } else {
-        throw new Error('Update failed');
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.detail || 'Update failed');
       }
     } catch (err) {
-      setNotice('Failed to update. Please check values.');
+      setNotice(err.message || 'Failed to update. Please check values.');
     } finally {
       setSaving(false);
     }
@@ -103,6 +110,7 @@ export default function CoupleEditor() {
   const couple = wedding?.couple_details || {};
 
   const updateCoupleField = (field, val) => {
+    setIsDirty(true);
     setWedding({
       ...wedding,
       couple_details: {
@@ -114,13 +122,35 @@ export default function CoupleEditor() {
 
   return (
     <div className="max-w-4xl space-y-6">
-      <div className="border-b border-gold-500/20 pb-4">
-        <span className="font-cinzel text-[10px] tracking-[0.25em] text-gold-400 uppercase">
-          Profiles
-        </span>
-        <h2 className="font-cinzel text-xl md:text-2xl font-bold gold-text-gradient mt-1">
-          COUPLE & ARTWORK
-        </h2>
+      <div className="border-b border-gold-500/20 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div>
+          <span className="font-cinzel text-[10px] tracking-[0.25em] text-gold-400 uppercase">
+            Profiles
+          </span>
+          <h2 className="font-cinzel text-xl md:text-2xl font-bold gold-text-gradient mt-1">
+            COUPLE & ARTWORK
+          </h2>
+        </div>
+        <div className="flex items-center gap-3">
+          {isDirty ? (
+            <span className="px-2.5 py-1 rounded-full text-[11px] font-sans font-medium bg-amber-500/20 text-amber-300 border border-amber-500/40">
+              ● Unsaved Changes
+            </span>
+          ) : (
+            <span className="px-2.5 py-1 rounded-full text-[11px] font-sans font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+              ✓ Synchronized Live
+            </span>
+          )}
+          <a
+            href={`/invite/${wedding?.slug || 'k-prabhu-m-nalini'}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-gold-500/10 hover:bg-gold-500/20 border border-gold-500/30 text-gold-300 hover:text-gold-200 text-xs font-cinzel transition-colors"
+          >
+            <span>Preview Live</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        </div>
       </div>
 
       {notice && (
@@ -581,7 +611,7 @@ export default function CoupleEditor() {
           className="px-8 py-3 rounded-full bg-gradient-to-r from-gold-600 via-gold-400 to-gold-600 text-navy-950 font-cinzel font-bold text-xs tracking-widest uppercase hover:brightness-110 shadow-gold-glow flex items-center space-x-2"
         >
           <Save className="w-4 h-4" />
-          <span>{saving ? 'SAVING...' : 'SAVE COUPLE DETAILS'}</span>
+          <span>{saving ? 'SAVING & SYNCHRONIZING LIVE...' : 'SAVE COUPLE DETAILS'}</span>
         </button>
       </form>
     </div>

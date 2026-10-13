@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Trash2, CheckCircle2, Image as ImageIcon } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, Image as ImageIcon, ExternalLink } from 'lucide-react';
 import { API_BASE } from '../../services/api';
+import { notifyAdminUpdate } from '../../services/realtimeSync';
 
 export default function GalleryManager() {
   const [wedding, setWedding] = useState(null);
@@ -43,7 +44,8 @@ export default function GalleryManager() {
     setNotice('');
 
     try {
-      const res = await fetch(`${apiBase}/weddings/admin/${wedding.slug}/gallery`, {
+      const targetSlug = wedding?.slug || 'k-prabhu-m-nalini';
+      const res = await fetch(`${apiBase}/weddings/admin/${targetSlug}/gallery`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -53,7 +55,8 @@ export default function GalleryManager() {
       });
 
       if (res.ok) {
-        setNotice('Photo added to gallery!');
+        notifyAdminUpdate(targetSlug, { source: 'gallery_add' });
+        setNotice('Photo added to gallery & synchronized live across all devices!');
         setNewImage({
           image_url: '',
           caption: '',
@@ -77,7 +80,8 @@ export default function GalleryManager() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
-        setNotice('Photo removed');
+        notifyAdminUpdate(wedding?.slug || 'current', { source: 'gallery_delete' });
+        setNotice('Photo removed & synchronized live across all devices!');
         fetchWedding();
       }
     } catch (err) {
@@ -91,13 +95,24 @@ export default function GalleryManager() {
 
   return (
     <div className="max-w-4xl space-y-8">
-      <div className="border-b border-gold-500/20 pb-4">
-        <span className="font-cinzel text-[10px] tracking-[0.25em] text-gold-400 uppercase">
-          Photos & Artworks
-        </span>
-        <h2 className="font-cinzel text-xl md:text-2xl font-bold gold-text-gradient mt-1">
-          EDITORIAL GALLERY MANAGER
-        </h2>
+      <div className="border-b border-gold-500/20 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div>
+          <span className="font-cinzel text-[10px] tracking-[0.25em] text-gold-400 uppercase">
+            Photos & Artworks
+          </span>
+          <h2 className="font-cinzel text-xl md:text-2xl font-bold gold-text-gradient mt-1">
+            EDITORIAL GALLERY MANAGER
+          </h2>
+        </div>
+        <a
+          href={`/invite/${wedding?.slug || 'k-prabhu-m-nalini'}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-gold-500/10 hover:bg-gold-500/20 border border-gold-500/30 text-gold-300 hover:text-gold-200 text-xs font-cinzel transition-colors self-start md:self-auto"
+        >
+          <span>Preview Live</span>
+          <ExternalLink className="w-3.5 h-3.5" />
+        </a>
       </div>
 
       {notice && (

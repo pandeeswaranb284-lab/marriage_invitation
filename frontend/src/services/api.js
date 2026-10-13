@@ -1,5 +1,7 @@
 const rawApiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE;
 
+export const PROD_BACKEND_ORIGIN = 'https://wedding-invitation-backend-0qez.onrender.com';
+
 export const API_BASE = rawApiUrl
   ? (rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl.replace(/\/$/, '')}/api`)
   : (typeof window !== 'undefined' && (window.location.port === '5173' || window.location.port === '5174')
@@ -13,7 +15,7 @@ export const getBackendOrigin = () => {
   if (typeof window !== 'undefined' && (window.location.port === '5173' || window.location.port === '5174')) {
     return 'http://127.0.0.1:8000';
   }
-  return '';
+  return PROD_BACKEND_ORIGIN;
 };
 
 export const resolveMediaUrl = (url) => {

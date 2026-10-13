@@ -145,14 +145,24 @@ const VERIFIED_WEDDING_DATA = {
 export default async function handler(request) {
   const url = new URL(request.url);
   const segments = url.pathname.split('/').filter(Boolean);
-  const slug = segments[segments.length - 1] || 'current';
+  
+  const isVersion = segments[segments.length - 1] === 'version';
+  const slug = (isVersion ? segments[segments.length - 2] : segments[segments.length - 1]) || 'current';
 
   const backendOrigin = process.env.VITE_API_URL || 'https://wedding-invitation-backend-0qez.onrender.com';
-  const targetUrl = `${backendOrigin.replace(/\/$/, '')}/api/weddings/public/${slug}`;
+  const queryStr = url.search || '';
+  const endpointPath = isVersion ? `/api/weddings/public/${slug}/version` : `/api/weddings/public/${slug}`;
+  const targetUrl = `${backendOrigin.replace(/\/$/, '')}${endpointPath}${queryStr}`;
+
+  const isBypassCache = isVersion || 
+    url.searchParams.has('v') || 
+    url.searchParams.has('t') || 
+    url.searchParams.has('refresh') || 
+    request.headers.get('cache-control')?.includes('no-cache');
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000); // 4s timeout before serving edge cache
+    const timeout = setTimeout(() => controller.abort(), 8000); // 8s timeout to accommodate Render warm-up
 
     const upstreamRes = await fetch(targetUrl, {
       signal: controller.signal,
@@ -164,13 +174,17 @@ export default async function handler(request) {
 
     if (upstreamRes.ok) {
       const data = await upstreamRes.json();
+      const cacheControl = isBypassCache
+        ? 'no-cache, no-store, must-revalidate'
+        : 'public, max-age=0, s-maxage=5, stale-while-revalidate=15';
+
       return new Response(JSON.stringify(data), {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
-          'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
-          'CDN-Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
-          'Vercel-CDN-Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+          'Cache-Control': cacheControl,
+          'CDN-Cache-Control': cacheControl,
+          'Vercel-CDN-Cache-Control': cacheControl,
           'Access-Control-Allow-Origin': '*',
         },
       });
@@ -179,16 +193,16 @@ export default async function handler(request) {
     // Upstream timed out (e.g. Render spin-up) or threw network error
   }
 
-  // Graceful fallback for the default wedding
+  // Graceful fallback for the default wedding (only for full invitation request, not version)
   const norm = slug.toLowerCase();
-  if (norm === 'k-prabhu-m-nalini' || norm === 'prabhu-nalini' || norm === 'current') {
+  if (!isVersion && (norm === 'k-prabhu-m-nalini' || norm === 'prabhu-nalini' || norm === 'current')) {
     return new Response(JSON.stringify(VERIFIED_WEDDING_DATA), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600',
-        'CDN-Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600',
-        'Vercel-CDN-Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600',
+        'Cache-Control': 'public, max-age=0, s-maxage=5, stale-while-revalidate=15',
+        'CDN-Cache-Control': 'public, max-age=0, s-maxage=5, stale-while-revalidate=15',
+        'Vercel-CDN-Cache-Control': 'public, max-age=0, s-maxage=5, stale-while-revalidate=15',
         'Access-Control-Allow-Origin': '*',
         'X-Cache-Fallback': 'true',
       },

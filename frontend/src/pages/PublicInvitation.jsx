@@ -4,8 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 import ScratchInvitationPage from './ScratchInvitationPage';
 import WeddingWebsite from './WeddingWebsite';
-import { API_BASE } from '../services/api';
+import { API_BASE, getBackendOrigin } from '../services/api';
 import { getInitialWeddingData, saveWeddingToCache } from '../services/weddingCache';
+import { subscribeToWeddingUpdates } from '../services/realtimeSync';
 
 export default function PublicInvitation() {
   const { slug } = useParams();
@@ -15,6 +16,7 @@ export default function PublicInvitation() {
   const [wedding, setWedding] = useState(initialWedding);
   const [loading, setLoading] = useState(!initialWedding);
   const [error, setError] = useState(null);
+  const [showLiveSyncToast, setShowLiveSyncToast] = useState(false);
 
   // Keep a ref to current wedding for resilient error handling
   const weddingRef = useRef(wedding);
@@ -24,20 +26,25 @@ export default function PublicInvitation() {
   const [invitationOpened, setInvitationOpened] = useState(false);
 
   const fetchWedding = useCallback(async (isUserRefresh = false) => {
-    const querySlug = slug || 'current';
+    const querySlug = slug || weddingRef.current?.slug || 'current';
     // Only show full-page loading if we have zero cached data to display
     if (!weddingRef.current && !isUserRefresh) {
       setLoading(true);
     }
 
     try {
-      // SWR strategy: try edge-cached local proxy first, then direct API_BASE
+      const cacheBustQuery = isUserRefresh ? `?v=${Date.now()}` : '';
       const candidateEndpoints = [];
+      const backendOrigin = getBackendOrigin();
+
       if (typeof window !== 'undefined') {
-        candidateEndpoints.push(`/api/weddings/public/${querySlug}`);
+        candidateEndpoints.push(`/api/weddings/public/${querySlug}${cacheBustQuery}`);
       }
-      if (API_BASE && !candidateEndpoints.includes(`${API_BASE}/weddings/public/${querySlug}`)) {
-        candidateEndpoints.push(`${API_BASE}/weddings/public/${querySlug}`);
+      if (backendOrigin) {
+        candidateEndpoints.push(`${backendOrigin}/api/weddings/public/${querySlug}${cacheBustQuery}`);
+      }
+      if (API_BASE && !candidateEndpoints.includes(`${API_BASE}/weddings/public/${querySlug}${cacheBustQuery}`)) {
+        candidateEndpoints.push(`${API_BASE}/weddings/public/${querySlug}${cacheBustQuery}`);
       }
 
       let freshData = null;
@@ -47,7 +54,12 @@ export default function PublicInvitation() {
         try {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 12000);
-          const res = await fetch(endpoint, { signal: controller.signal });
+          const res = await fetch(endpoint, {
+            signal: controller.signal,
+            headers: isUserRefresh
+              ? { 'Cache-Control': 'no-cache, no-store, must-revalidate', Pragma: 'no-cache' }
+              : {},
+          });
           clearTimeout(timeoutId);
 
           if (res.ok) {
@@ -62,6 +74,9 @@ export default function PublicInvitation() {
       if (freshData) {
         setWedding(freshData);
         saveWeddingToCache(querySlug, freshData);
+        if (freshData.slug) {
+          saveWeddingToCache(freshData.slug, freshData);
+        }
         setError(null);
 
         // Auto-update browser URL bar to match the wedding's active URL name
@@ -84,6 +99,23 @@ export default function PublicInvitation() {
   useEffect(() => {
     fetchWedding();
   }, [fetchWedding]);
+
+  // ── Multi-Tier Real-Time Synchronization Listener ──────────────────────────
+  useEffect(() => {
+    const activeSlug = slug || wedding?.slug || 'current';
+    const unsubscribe = subscribeToWeddingUpdates(
+      activeSlug,
+      async (updateEvent) => {
+        // Fetch authoritative fresh data bypassing CDN & browser caches
+        await fetchWedding(true);
+        setShowLiveSyncToast(true);
+        setTimeout(() => setShowLiveSyncToast(false), 3000);
+      },
+      wedding?.updated_at
+    );
+
+    return unsubscribe;
+  }, [slug, wedding?.slug, wedding?.updated_at, fetchWedding]);
 
   useEffect(() => {
     if (wedding) {
@@ -139,21 +171,38 @@ export default function PublicInvitation() {
   // invitationOpened === false → ONLY ScratchInvitationPage
   // invitationOpened === true  → ONLY WeddingWebsite
   return (
-    <AnimatePresence mode="wait">
-      {!invitationOpened ? (
-        <ScratchInvitationPage
-          key="scratch-gate"
-          wedding={wedding}
-          onOpen={() => setInvitationOpened(true)}
-        />
-      ) : (
-        <WeddingWebsite
-          key="wedding-website"
-          wedding={wedding}
-          apiBase={API_BASE}
-          onRefresh={() => fetchWedding(true)}
-        />
-      )}
-    </AnimatePresence>
+    <>
+      <AnimatePresence>
+        {showLiveSyncToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            transition={{ duration: 0.3 }}
+            className="fixed top-4 right-4 z-[9999] bg-[#070c18]/95 backdrop-blur-md border border-[#dfba73] text-[#dfba73] px-3.5 py-1.5 rounded-full shadow-2xl flex items-center space-x-2 text-xs font-cinzel pointer-events-none"
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="tracking-wider">Invitation Updated Live</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence mode="wait">
+        {!invitationOpened ? (
+          <ScratchInvitationPage
+            key="scratch-gate"
+            wedding={wedding}
+            onOpen={() => setInvitationOpened(true)}
+          />
+        ) : (
+          <WeddingWebsite
+            key="wedding-website"
+            wedding={wedding}
+            apiBase={API_BASE}
+            onRefresh={() => fetchWedding(true)}
+          />
+        )}
+      </AnimatePresence>
+    </>
   );
 }

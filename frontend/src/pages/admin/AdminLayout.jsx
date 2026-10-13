@@ -13,11 +13,12 @@ import {
 } from 'lucide-react';
 
 import { API_BASE } from '../../services/api';
+import { subscribeToWeddingUpdates } from '../../services/realtimeSync';
 
 export default function AdminLayout() {
   const navigate = useNavigate();
   const token = localStorage.getItem('admin_token');
-  const [publicSlug, setPublicSlug] = React.useState('arun-priya');
+  const [publicSlug, setPublicSlug] = React.useState('k-prabhu-m-nalini');
 
   useEffect(() => {
     if (!token) {
@@ -25,12 +26,18 @@ export default function AdminLayout() {
       return;
     }
 
-    fetch(`${API_BASE}/weddings/public/current`)
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (data?.slug) setPublicSlug(data.slug);
-      })
-      .catch(() => {});
+    const refreshSlug = () => {
+      fetch(`${API_BASE}/weddings/public/current`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data?.slug) setPublicSlug(data.slug);
+        })
+        .catch(() => {});
+    };
+
+    refreshSlug();
+    const unsubscribe = subscribeToWeddingUpdates('current', refreshSlug);
+    return unsubscribe;
   }, [token, navigate]);
 
   const handleLogout = () => {

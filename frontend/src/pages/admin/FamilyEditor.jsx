@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Save, CheckCircle2 } from 'lucide-react';
+import { Save, CheckCircle2, ExternalLink } from 'lucide-react';
 import { API_BASE } from '../../services/api';
+import { notifyAdminUpdate } from '../../services/realtimeSync';
 
 export default function FamilyEditor() {
   const [wedding, setWedding] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState('');
+  const [isDirty, setIsDirty] = useState(false);
   const token = localStorage.getItem('admin_token');
   const apiBase = API_BASE;
 
@@ -36,7 +38,8 @@ export default function FamilyEditor() {
     setNotice('');
 
     try {
-      const res = await fetch(`${apiBase}/weddings/admin/${wedding.slug}`, {
+      const targetSlug = wedding?.slug || 'k-prabhu-m-nalini';
+      const res = await fetch(`${apiBase}/weddings/admin/${targetSlug}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -48,12 +51,15 @@ export default function FamilyEditor() {
       });
 
       if (res.ok) {
-        setNotice('Family details & blessings saved successfully!');
+        setIsDirty(false);
+        notifyAdminUpdate(targetSlug, { source: 'family_editor' });
+        setNotice('✓ Family details & blessings saved and synchronized live across all devices!');
       } else {
-        throw new Error('Update failed');
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.detail || 'Update failed');
       }
     } catch (err) {
-      setNotice('Failed to update family details.');
+      setNotice(err.message || 'Failed to update family details.');
     } finally {
       setSaving(false);
     }
@@ -64,6 +70,7 @@ export default function FamilyEditor() {
   const families = wedding?.families || {};
 
   const updateFamilyField = (field, val) => {
+    setIsDirty(true);
     setWedding({
       ...wedding,
       families: {
@@ -75,13 +82,35 @@ export default function FamilyEditor() {
 
   return (
     <div className="max-w-4xl space-y-6">
-      <div className="border-b border-gold-500/20 pb-4">
-        <span className="font-cinzel text-[10px] tracking-[0.25em] text-gold-400 uppercase">
-          Lineage
-        </span>
-        <h2 className="font-cinzel text-xl md:text-2xl font-bold gold-text-gradient mt-1">
-          FAMILIES & ELDER BLESSINGS
-        </h2>
+      <div className="border-b border-gold-500/20 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div>
+          <span className="font-cinzel text-[10px] tracking-[0.25em] text-gold-400 uppercase">
+            Lineage
+          </span>
+          <h2 className="font-cinzel text-xl md:text-2xl font-bold gold-text-gradient mt-1">
+            FAMILIES & ELDER BLESSINGS
+          </h2>
+        </div>
+        <div className="flex items-center gap-3">
+          {isDirty ? (
+            <span className="px-2.5 py-1 rounded-full text-[11px] font-sans font-medium bg-amber-500/20 text-amber-300 border border-amber-500/40">
+              ● Unsaved Changes
+            </span>
+          ) : (
+            <span className="px-2.5 py-1 rounded-full text-[11px] font-sans font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+              ✓ Synchronized Live
+            </span>
+          )}
+          <a
+            href={`/invite/${wedding?.slug || 'k-prabhu-m-nalini'}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-gold-500/10 hover:bg-gold-500/20 border border-gold-500/30 text-gold-300 hover:text-gold-200 text-xs font-cinzel transition-colors"
+          >
+            <span>Preview Live</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        </div>
       </div>
 
       {notice && (
@@ -178,7 +207,7 @@ export default function FamilyEditor() {
           className="px-8 py-3 rounded-full bg-gradient-to-r from-gold-600 via-gold-400 to-gold-600 text-navy-950 font-cinzel font-bold text-xs tracking-widest uppercase hover:brightness-110 shadow-gold-glow flex items-center space-x-2"
         >
           <Save className="w-4 h-4" />
-          <span>{saving ? 'SAVING...' : 'SAVE FAMILY DETAILS'}</span>
+          <span>{saving ? 'SAVING & SYNCHRONIZING LIVE...' : 'SAVE FAMILY DETAILS'}</span>
         </button>
       </form>
     </div>

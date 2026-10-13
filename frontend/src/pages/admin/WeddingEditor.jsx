@@ -16,6 +16,7 @@ import {
   Sliders,
 } from 'lucide-react';
 import { API_BASE, resolveMediaUrl } from '../../services/api';
+import { notifyAdminUpdate } from '../../services/realtimeSync';
 
 const slugify = (groom, bride) => {
   const clean = `${groom || ''} ${bride || ''}`
@@ -54,6 +55,7 @@ export default function WeddingEditor() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoUploadNotice, setPhotoUploadNotice] = useState('');
   const [photoUploadError, setPhotoUploadError] = useState('');
+  const [isDirty, setIsDirty] = useState(false);
   const photoInputRef = useRef(null);
 
   const token = localStorage.getItem('admin_token');
@@ -103,7 +105,8 @@ export default function WeddingEditor() {
         music_url: data.url,
         music_enabled: true,
       }));
-      setMusicUploadNotice(`"${file.name}" uploaded successfully! Background music is enabled.`);
+      notifyAdminUpdate(wedding?.slug || 'current', { source: 'music_upload' });
+      setMusicUploadNotice(`"${file.name}" uploaded successfully! Background music is enabled & synced live.`);
       if (audioPreviewRef.current) {
         audioPreviewRef.current.src = resolveMediaUrl(data.url);
       }
@@ -148,7 +151,8 @@ export default function WeddingEditor() {
           artwork_url: data.url,
         },
       }));
-      setPhotoUploadNotice(`"${file.name}" uploaded successfully! Set as center circle image.`);
+      notifyAdminUpdate(wedding?.slug || 'current', { source: 'photo_upload' });
+      setPhotoUploadNotice(`"${file.name}" uploaded successfully! Set as center circle image & synced live.`);
     } catch (err) {
       setPhotoUploadError(err.message || 'Failed to upload photo');
     } finally {
@@ -187,6 +191,7 @@ export default function WeddingEditor() {
   };
 
   const handleGroomChange = (val) => {
+    setIsDirty(true);
     const nextSlug = slugify(val, wedding?.bride_name);
     const gInitial = val?.trim()?.[0]?.toUpperCase() || 'G';
     const bInitial = wedding?.bride_name?.trim()?.[0]?.toUpperCase() || 'B';
@@ -203,6 +208,7 @@ export default function WeddingEditor() {
   };
 
   const handleBrideChange = (val) => {
+    setIsDirty(true);
     const nextSlug = slugify(wedding?.groom_name, val);
     const gInitial = wedding?.groom_name?.trim()?.[0]?.toUpperCase() || 'G';
     const bInitial = val?.trim()?.[0]?.toUpperCase() || 'B';
@@ -219,6 +225,7 @@ export default function WeddingEditor() {
   };
 
   const updateCoupleField = (field, val) => {
+    setIsDirty(true);
     setWedding(prev => ({
       ...prev,
       couple_details: {
@@ -260,15 +267,19 @@ export default function WeddingEditor() {
 
       if (res.ok) {
         const data = await res.json();
+        const finalSlug = data.slug || wedding.slug;
         if (data.slug) {
           setWedding(prev => ({ ...prev, slug: data.slug }));
         }
-        setNotice(`Wedding details & URL successfully updated to /invite/${data.slug || wedding.slug}!`);
+        setIsDirty(false);
+        notifyAdminUpdate(finalSlug, { updated_at: data.updated_at, source: 'wedding_editor' });
+        setNotice(`✓ Saved successfully & synchronized live across all devices! Live URL: /invite/${finalSlug}`);
       } else {
-        throw new Error('Update failed');
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.detail || 'Update failed');
       }
     } catch (err) {
-      setNotice('Failed to update. Please check values.');
+      setNotice(err.message || 'Failed to update. Please check values.');
     } finally {
       setSaving(false);
     }
@@ -278,13 +289,35 @@ export default function WeddingEditor() {
 
   return (
     <div className="max-w-4xl space-y-6">
-      <div className="border-b border-gold-500/20 pb-4">
-        <span className="font-cinzel text-[10px] tracking-[0.25em] text-gold-400 uppercase">
-          Settings
-        </span>
-        <h2 className="font-cinzel text-xl md:text-2xl font-bold gold-text-gradient mt-1">
-          WEDDING CORE DETAILS
-        </h2>
+      <div className="border-b border-gold-500/20 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div>
+          <span className="font-cinzel text-[10px] tracking-[0.25em] text-gold-400 uppercase">
+            Settings
+          </span>
+          <h2 className="font-cinzel text-xl md:text-2xl font-bold gold-text-gradient mt-1">
+            WEDDING CORE DETAILS
+          </h2>
+        </div>
+        <div className="flex items-center gap-3">
+          {isDirty ? (
+            <span className="px-2.5 py-1 rounded-full text-[11px] font-sans font-medium bg-amber-500/20 text-amber-300 border border-amber-500/40">
+              ● Unsaved Changes
+            </span>
+          ) : (
+            <span className="px-2.5 py-1 rounded-full text-[11px] font-sans font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+              ✓ Synchronized Live
+            </span>
+          )}
+          <a
+            href={`/invite/${wedding?.slug || 'k-prabhu-m-nalini'}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-gold-500/10 hover:bg-gold-500/20 border border-gold-500/30 text-gold-300 hover:text-gold-200 text-xs font-cinzel transition-colors"
+          >
+            <span>Preview Live</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        </div>
       </div>
 
       {notice && (

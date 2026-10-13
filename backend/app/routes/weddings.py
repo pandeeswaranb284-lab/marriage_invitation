@@ -1,16 +1,21 @@
+import asyncio
 import csv
 import io
+import json
 import re
+import time
 import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status, File, UploadFile
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_admin
 from app.database import get_db
+from app.services.event_bus import event_bus
 from app.models.couple_detail import CoupleDetail
 from app.models.family import Family
 from app.models.gallery_image import GalleryImage
@@ -65,8 +70,10 @@ def get_public_wedding(slug: str, response: Response, db: Session = Depends(get_
     if not wedding.is_published:
         raise HTTPException(status_code=404, detail="Invitation is not published yet")
 
-    # Enable edge/CDN and browser caching with stale-while-revalidate
-    response.headers["Cache-Control"] = "public, max-age=60, s-maxage=3600, stale-while-revalidate=86400"
+    # Modern responsive caching: short edge TTL (5s) with fast background revalidation
+    response.headers["Cache-Control"] = "public, max-age=0, s-maxage=5, stale-while-revalidate=15, must-revalidate"
+    if wedding.updated_at:
+        response.headers["ETag"] = f'"{int(wedding.updated_at.timestamp())}"'
 
     approved_wishes = [w for w in wedding.guest_wishes if w.is_approved and w.visibility == 'public']
     
@@ -94,8 +101,77 @@ def get_public_wedding(slug: str, response: Response, db: Session = Depends(get_
         "reception_details": wedding.reception_details,
         "gallery_images": wedding.gallery_images,
         "guest_wishes": approved_wishes,
+        "updated_at": wedding.updated_at,
     }
     return data
+
+
+@router.get("/public/{slug}/version")
+@router.get("/version/{slug}")
+def get_wedding_version(slug: str, response: Response, db: Session = Depends(get_db)):
+    """Lightweight (< 2ms) endpoint for polling or wake-up freshness verification."""
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    wedding = find_wedding_by_slug_or_default(db, slug)
+    if not wedding:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+
+    updated_iso = wedding.updated_at.isoformat() if wedding.updated_at else datetime.utcnow().isoformat()
+    return {
+        "slug": wedding.slug,
+        "updated_at": updated_iso,
+        "is_published": wedding.is_published,
+        "title": wedding.title,
+    }
+
+
+@router.get("/public/{slug}/stream")
+@router.get("/stream/{slug}")
+async def stream_wedding_updates(slug: str, request: Request, db: Session = Depends(get_db)):
+    """Server-Sent Events (SSE) live update stream for public guests & admin previewers."""
+    # Verify wedding exists
+    wedding = find_wedding_by_slug_or_default(db, slug)
+    target_slug = wedding.slug if wedding else slug
+
+    queue = event_bus.subscribe(target_slug)
+
+    async def event_generator():
+        try:
+            # Send initial handshake event
+            init_payload = json.dumps({
+                "type": "connected",
+                "slug": target_slug,
+                "server_time": time.time(),
+                "updated_at": wedding.updated_at.isoformat() if (wedding and wedding.updated_at) else None
+            })
+            yield f"event: connected\ndata: {init_payload}\n\n"
+
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    # Wait for an update or ping every 15s
+                    msg = await asyncio.wait_for(queue.get(), timeout=15.0)
+                    yield f"event: wedding_updated\ndata: {msg}\n\n"
+                except asyncio.TimeoutError:
+                    # Heartbeat comment to keep HTTP/2 and reverse proxies connected
+                    yield f": ping {time.time()}\n\n"
+        except (asyncio.CancelledError, GeneratorExit):
+            pass
+        finally:
+            event_bus.unsubscribe(target_slug, queue)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+            "Access-Control-Allow-Origin": "*",
+        }
+    )
 
 
 @router.post("/public/{slug}/rsvp", status_code=201)
@@ -140,9 +216,18 @@ def submit_public_wish(slug: str, payload: GuestWishCreate, db: Session = Depend
         status="approved" if is_public else "private",
         is_approved=is_public,
     )
+    if is_public:
+        wedding.updated_at = datetime.utcnow()
     db.add(wish)
     db.commit()
     db.refresh(wish)
+    if is_public:
+        event_bus.publish(wedding.slug, {
+            "type": "wedding_updated",
+            "slug": wedding.slug,
+            "updated_at": wedding.updated_at.isoformat(),
+            "source": "public_wish"
+        })
     msg = (
         "Your blessing has been published successfully."
         if is_public
@@ -248,7 +333,14 @@ async def upload_music(
     if wedding:
         wedding.music_url = relative_url
         wedding.music_enabled = True
+        wedding.updated_at = datetime.utcnow()
         db.commit()
+        event_bus.publish(wedding.slug, {
+            "type": "wedding_updated",
+            "slug": wedding.slug,
+            "updated_at": wedding.updated_at.isoformat(),
+            "source": "music_upload"
+        })
 
     return {
         "url": relative_url,
@@ -289,7 +381,14 @@ async def upload_artwork(
             db.add(cd)
         else:
             wedding.couple_details.artwork_url = relative_url
+        wedding.updated_at = datetime.utcnow()
         db.commit()
+        event_bus.publish(wedding.slug, {
+            "type": "wedding_updated",
+            "slug": wedding.slug,
+            "updated_at": wedding.updated_at.isoformat(),
+            "source": "artwork_upload"
+        })
 
     return {
         "url": relative_url,
@@ -372,9 +471,28 @@ def update_admin_wedding(slug: str, payload: WeddingUpdate, db: Session = Depend
             if k != "id":
                 setattr(wedding.reception_details, k, v)
 
+    old_slug = wedding.slug
+    wedding.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(wedding)
-    return {"message": "Wedding updated successfully", "slug": wedding.slug}
+
+    updated_iso = wedding.updated_at.isoformat() if wedding.updated_at else datetime.utcnow().isoformat()
+    event_payload = {
+        "type": "wedding_updated",
+        "slug": wedding.slug,
+        "old_slug": old_slug,
+        "updated_at": updated_iso,
+        "source": "admin_editor"
+    }
+    event_bus.publish(wedding.slug, event_payload)
+    if old_slug and old_slug != wedding.slug:
+        event_bus.publish(old_slug, event_payload)
+
+    return {
+        "message": "Wedding updated successfully",
+        "slug": wedding.slug,
+        "updated_at": updated_iso,
+    }
 
 
 @router.get("/admin/{slug}/rsvps", response_model=List[RSVPOut])
@@ -430,7 +548,17 @@ def update_wish_status(wish_id: int, status_val: str, db: Session = Depends(get_
         raise HTTPException(status_code=404, detail="Wish not found")
     wish.status = status_val
     wish.is_approved = (status_val.lower() == "approved")
+    if wish.wedding:
+        wish.wedding.updated_at = datetime.utcnow()
     db.commit()
+
+    if wish.wedding:
+        event_bus.publish(wish.wedding.slug, {
+            "type": "wedding_updated",
+            "slug": wish.wedding.slug,
+            "updated_at": wish.wedding.updated_at.isoformat(),
+            "source": "wish_status_updated"
+        })
     return {"message": f"Wish status updated to {status_val}"}
 
 
@@ -439,8 +567,19 @@ def delete_wish_admin(wish_id: int, db: Session = Depends(get_db), _: object = D
     wish = db.query(GuestWish).filter(GuestWish.id == wish_id).first()
     if not wish:
         raise HTTPException(status_code=404, detail="Wish not found")
+    wedding = wish.wedding
     db.delete(wish)
+    if wedding:
+        wedding.updated_at = datetime.utcnow()
     db.commit()
+
+    if wedding:
+        event_bus.publish(wedding.slug, {
+            "type": "wedding_updated",
+            "slug": wedding.slug,
+            "updated_at": wedding.updated_at.isoformat(),
+            "source": "wish_deleted"
+        })
     return {"message": "Wish deleted successfully"}
 
 
@@ -458,9 +597,17 @@ def add_gallery_image(slug: str, payload: GalleryImageSchema, db: Session = Depe
         display_order=payload.display_order or 0,
         is_hero=payload.is_hero or False,
     )
+    wedding.updated_at = datetime.utcnow()
     db.add(item)
     db.commit()
     db.refresh(item)
+
+    event_bus.publish(wedding.slug, {
+        "type": "wedding_updated",
+        "slug": wedding.slug,
+        "updated_at": wedding.updated_at.isoformat(),
+        "source": "gallery_added"
+    })
     return item
 
 
@@ -469,6 +616,17 @@ def delete_gallery_image(image_id: int, db: Session = Depends(get_db), _: object
     item = db.query(GalleryImage).filter(GalleryImage.id == image_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Gallery item not found")
+    wedding = item.wedding
     db.delete(item)
+    if wedding:
+        wedding.updated_at = datetime.utcnow()
     db.commit()
+
+    if wedding:
+        event_bus.publish(wedding.slug, {
+            "type": "wedding_updated",
+            "slug": wedding.slug,
+            "updated_at": wedding.updated_at.isoformat(),
+            "source": "gallery_deleted"
+        })
     return {"message": "Gallery image deleted"}

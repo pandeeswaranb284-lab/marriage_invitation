@@ -84,3 +84,16 @@ export function saveWeddingToCache(slug, data) {
     // Ignore storage write quota exceptions
   }
 }
+
+/**
+ * Clears cached wedding data to force a fresh fetch.
+ */
+export function clearWeddingCache(slug) {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    const norm = normalizeSlug(slug);
+    window.localStorage.removeItem(`${CACHE_PREFIX}${norm}`);
+    window.localStorage.removeItem(`${CACHE_PREFIX}current`);
+  } catch (_) {}
+}
+

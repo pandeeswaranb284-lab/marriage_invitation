@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Check, X, Trash2, CheckCircle2 } from 'lucide-react';
+import { Check, X, Trash2, CheckCircle2, ExternalLink } from 'lucide-react';
 import { API_BASE } from '../../services/api';
+import { notifyAdminUpdate } from '../../services/realtimeSync';
 
 export default function WishManager() {
   const [wishes, setWishes] = useState([]);
@@ -37,7 +38,8 @@ export default function WishManager() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
-        setNotice(`Wish marked as ${newStatus}`);
+        notifyAdminUpdate('current', { source: 'wish_status' });
+        setNotice(`Wish marked as ${newStatus} & synchronized live!`);
         fetchWishes();
       }
     } catch (err) {
@@ -53,7 +55,8 @@ export default function WishManager() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
-        setNotice('Wish deleted');
+        notifyAdminUpdate('current', { source: 'wish_deleted' });
+        setNotice('Wish deleted & synchronized live!');
         fetchWishes();
       }
     } catch (err) {
@@ -72,13 +75,24 @@ export default function WishManager() {
 
   return (
     <div className="max-w-4xl space-y-6">
-      <div className="border-b border-gold-500/20 pb-4">
-        <span className="font-cinzel text-[10px] tracking-[0.25em] text-gold-400 uppercase">
-          Moderation
-        </span>
-        <h2 className="font-cinzel text-xl md:text-2xl font-bold gold-text-gradient mt-1">
-          BLESSINGS & WISHES MANAGER
-        </h2>
+      <div className="border-b border-gold-500/20 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div>
+          <span className="font-cinzel text-[10px] tracking-[0.25em] text-gold-400 uppercase">
+            Moderation
+          </span>
+          <h2 className="font-cinzel text-xl md:text-2xl font-bold gold-text-gradient mt-1">
+            BLESSINGS & WISHES MANAGER
+          </h2>
+        </div>
+        <a
+          href="/invite/current"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-gold-500/10 hover:bg-gold-500/20 border border-gold-500/30 text-gold-300 hover:text-gold-200 text-xs font-cinzel transition-colors self-start md:self-auto"
+        >
+          <span>Preview Live</span>
+          <ExternalLink className="w-3.5 h-3.5" />
+        </a>
       </div>
 
       {notice && (

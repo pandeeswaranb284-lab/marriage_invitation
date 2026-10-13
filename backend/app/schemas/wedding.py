@@ -170,6 +170,7 @@ class WeddingPublic(BaseModel):
     reception_details: Optional[ReceptionDetailSchema] = None
     gallery_images: List[GalleryImageSchema] = []
     guest_wishes: List[GuestWishOut] = []
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
