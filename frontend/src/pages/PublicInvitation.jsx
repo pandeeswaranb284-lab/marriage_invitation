@@ -16,7 +16,6 @@ export default function PublicInvitation() {
   const [wedding, setWedding] = useState(initialWedding);
   const [loading, setLoading] = useState(!initialWedding);
   const [error, setError] = useState(null);
-  const [showLiveSyncToast, setShowLiveSyncToast] = useState(false);
 
   // Keep a ref to current wedding for resilient error handling
   const weddingRef = useRef(wedding);
@@ -106,10 +105,8 @@ export default function PublicInvitation() {
     const unsubscribe = subscribeToWeddingUpdates(
       activeSlug,
       async (updateEvent) => {
-        // Fetch authoritative fresh data bypassing CDN & browser caches
+        // Fetch authoritative fresh data bypassing CDN & browser caches silently
         await fetchWedding(true);
-        setShowLiveSyncToast(true);
-        setTimeout(() => setShowLiveSyncToast(false), 3000);
       },
       wedding?.updated_at
     );
@@ -172,20 +169,6 @@ export default function PublicInvitation() {
   // invitationOpened === true  → ONLY WeddingWebsite
   return (
     <>
-      <AnimatePresence>
-        {showLiveSyncToast && (
-          <motion.div
-            initial={{ opacity: 0, y: -20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            transition={{ duration: 0.3 }}
-            className="fixed top-4 right-4 z-[9999] bg-[#070c18]/95 backdrop-blur-md border border-[#dfba73] text-[#dfba73] px-3.5 py-1.5 rounded-full shadow-2xl flex items-center space-x-2 text-xs font-cinzel pointer-events-none"
-          >
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="tracking-wider">Invitation Updated Live</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <AnimatePresence mode="wait">
         {!invitationOpened ? (
