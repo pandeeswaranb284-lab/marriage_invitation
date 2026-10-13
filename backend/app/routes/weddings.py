@@ -372,6 +372,15 @@ async def upload_artwork(
     with open(target_path, "wb") as f:
         f.write(contents)
 
+    # Mirror to frontend public uploads if exists in workspace for instant dev preview
+    frontend_uploads = Path(__file__).parent.parent.parent.parent / "frontend" / "public" / "uploads"
+    if frontend_uploads.exists():
+        try:
+            with open(frontend_uploads / unique_filename, "wb") as f_front:
+                f_front.write(contents)
+        except Exception:
+            pass
+
     relative_url = f"/uploads/{unique_filename}"
 
     wedding = db.query(Wedding).first()

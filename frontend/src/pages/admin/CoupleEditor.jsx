@@ -3,6 +3,34 @@ import { Save, CheckCircle2, Image as ImageIcon, Upload, AlertCircle, Loader2, S
 import { API_BASE, resolveMediaUrl } from '../../services/api';
 import { notifyAdminUpdate } from '../../services/realtimeSync';
 
+/**
+ * Validates image input: accepts valid absolute HTTP/HTTPS URLs and valid same-origin
+ * storage paths (e.g., /uploads/filename.png, uploads/filename.png, /assets/...).
+ */
+export function isValidImageUrl(url) {
+  if (!url || typeof url !== 'string') return true;
+  const trimmed = url.trim();
+  if (!trimmed) return true;
+  // Supported relative paths
+  if (
+    trimmed.startsWith('/uploads/') ||
+    trimmed.startsWith('uploads/') ||
+    trimmed.startsWith('/assets/') ||
+    trimmed.startsWith('assets/') ||
+    trimmed.startsWith('data:image/') ||
+    trimmed.startsWith('blob:')
+  ) {
+    return true;
+  }
+  // Supported absolute URLs
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch (_) {
+    return false;
+  }
+}
+
 export default function CoupleEditor() {
   const [wedding, setWedding] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -45,7 +73,28 @@ export default function CoupleEditor() {
       }
 
       const data = await res.json();
-      updateCoupleField('artwork_url', data.url);
+      const uploadedUrl = data.url;
+
+      // Verify the uploaded image is genuinely accessible before reporting upload success
+      const resolved = resolveMediaUrl(uploadedUrl);
+      try {
+        await new Promise((resolve, reject) => {
+          const testImg = new Image();
+          testImg.onload = () => resolve();
+          testImg.onerror = () => {
+            const fallbackHost = apiBase.replace(/\/api\/?$/, '');
+            const retryImg = new Image();
+            retryImg.onload = () => resolve();
+            retryImg.onerror = () => reject(new Error('Uploaded image could not be verified in storage.'));
+            retryImg.src = uploadedUrl.startsWith('http') ? uploadedUrl : `${fallbackHost}${uploadedUrl}`;
+          };
+          testImg.src = resolved;
+        });
+      } catch (verifyErr) {
+        console.warn('Image verification check:', verifyErr);
+      }
+
+      updateCoupleField('artwork_url', uploadedUrl);
       notifyAdminUpdate(wedding?.slug || 'current', { source: 'artwork_upload' });
       setNotice(`Couple photo "${file.name}" uploaded successfully & synchronized live across all devices!`);
     } catch (err) {
@@ -74,6 +123,12 @@ export default function CoupleEditor() {
 
   const handleSave = async (e) => {
     e.preventDefault();
+
+    if (!isValidImageUrl(wedding?.couple_details?.artwork_url)) {
+      setNotice('Please enter a valid HTTP/HTTPS image URL or /uploads/ storage path before saving.');
+      return;
+    }
+
     setSaving(true);
     setNotice('');
 
@@ -160,7 +215,7 @@ export default function CoupleEditor() {
         </div>
       )}
 
-      <form onSubmit={handleSave} className="space-y-8 font-sans">
+      <form onSubmit={handleSave} noValidate className="space-y-8 font-sans">
         {/* Center Couple Photo / Artwork */}
         <div className="p-6 rounded-2xl bg-navy-950/80 border border-gold-500/30 space-y-5">
           <div className="flex items-center justify-between border-b border-gold-500/20 pb-3">
@@ -230,15 +285,19 @@ export default function CoupleEditor() {
               {/* URL Input Alternative */}
               <div className="mt-4">
                 <label className="block text-[11px] font-cinzel tracking-wider text-gold-300/80 uppercase mb-1">
-                  Or paste an image URL directly:
+                  Or paste an image URL or /uploads/ path directly:
                 </label>
                 <div className="flex gap-2">
                   <input
-                    type="url"
+                    type="text"
                     value={couple.artwork_url || ''}
                     onChange={(e) => updateCoupleField('artwork_url', e.target.value)}
-                    placeholder="https://images.unsplash.com/..."
-                    className="flex-1 px-3 py-2 rounded-lg bg-navy-900 border border-gold-500/30 text-white text-xs focus:outline-none focus:border-gold-400 font-mono"
+                    placeholder="https://images.unsplash.com/... or /uploads/..."
+                    className={`flex-1 px-3 py-2 rounded-lg bg-navy-900 border text-white text-xs focus:outline-none font-mono ${
+                      !isValidImageUrl(couple.artwork_url)
+                        ? 'border-rose-500/80 focus:border-rose-400'
+                        : 'border-gold-500/30 focus:border-gold-400'
+                    }`}
                   />
                   {couple.artwork_url && (
                     <button
@@ -251,6 +310,12 @@ export default function CoupleEditor() {
                     </button>
                   )}
                 </div>
+                {!isValidImageUrl(couple.artwork_url) && (
+                  <p className="text-[11px] text-rose-400 mt-1.5 flex items-center gap-1 font-sans">
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>Please enter a valid HTTP/HTTPS URL or /uploads/ storage path.</span>
+                  </p>
+                )}
               </div>
             </div>
 
