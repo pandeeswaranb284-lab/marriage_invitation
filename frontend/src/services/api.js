@@ -22,6 +22,10 @@ export const resolveMediaUrl = (url) => {
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
     return url;
   }
+  // Static uploads are deployed with the frontend on Vercel CDN with immutable caching
+  if (url.startsWith('/uploads/') || url.startsWith('uploads/')) {
+    return url.startsWith('/') ? url : `/${url}`;
+  }
   const origin = getBackendOrigin();
   if (origin) {
     return `${origin}${url.startsWith('/') ? '' : '/'}${url}`;

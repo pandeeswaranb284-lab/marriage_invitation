@@ -58,12 +58,15 @@ def find_wedding_by_slug_or_default(db: Session, slug: str) -> Optional[Wedding]
 # --- PUBLIC ENDPOINTS ---
 
 @router.get("/public/{slug}", response_model=WeddingPublic)
-def get_public_wedding(slug: str, db: Session = Depends(get_db)):
+def get_public_wedding(slug: str, response: Response, db: Session = Depends(get_db)):
     wedding = find_wedding_by_slug_or_default(db, slug)
     if not wedding:
         raise HTTPException(status_code=404, detail="Invitation not found")
     if not wedding.is_published:
         raise HTTPException(status_code=404, detail="Invitation is not published yet")
+
+    # Enable edge/CDN and browser caching with stale-while-revalidate
+    response.headers["Cache-Control"] = "public, max-age=60, s-maxage=3600, stale-while-revalidate=86400"
 
     approved_wishes = [w for w in wedding.guest_wishes if w.is_approved and w.visibility == 'public']
     
@@ -149,10 +152,11 @@ def submit_public_wish(slug: str, payload: GuestWishCreate, db: Session = Depend
 
 
 @router.get("/public/{slug}/wishes", response_model=List[GuestWishOut])
-def get_public_wishes(slug: str, db: Session = Depends(get_db)):
+def get_public_wishes(slug: str, response: Response, db: Session = Depends(get_db)):
     wedding = find_wedding_by_slug_or_default(db, slug)
     if not wedding:
         raise HTTPException(status_code=404, detail="Invitation not found")
+    response.headers["Cache-Control"] = "public, max-age=30, s-maxage=300, stale-while-revalidate=3600"
     # Only return public + approved blessings — never expose private ones
     return [w for w in wedding.guest_wishes if w.is_approved and w.visibility == 'public']
 

@@ -124,7 +124,21 @@ export default function WeddingWebsite({ wedding, apiBase, onRefresh }) {
         <p className="text-[11px] tracking-[0.25em] text-[#8F3045]/60 uppercase font-medium">
           {formattedDate}
         </p>
-        <p className="text-[10px] tracking-widest text-[#8F3045]/50 uppercase mt-4">
+
+        {/* ── With Best Compliments From ── */}
+        <div className="pt-4 pb-2 border-t border-[#FCE4E8]/80 max-w-sm mx-auto space-y-1">
+          <p className="font-cinzel text-[10px] tracking-widest text-[#E85D75] uppercase font-bold">
+            With Best Compliments from
+          </p>
+          <p className="font-serif italic text-sm text-[#8F3045] font-bold">
+            M. Gopi <span className="text-[11px] font-sans not-italic font-semibold text-[#8F3045]/75">B.E.,</span> &nbsp;—&nbsp; T. Yogapriya <span className="text-[11px] font-sans not-italic font-semibold text-[#8F3045]/75">B.E., M.E.</span>
+          </p>
+          <p className="font-serif italic text-xs text-[#E85D75] font-bold">
+            G.Y. Dhruvan
+          </p>
+        </div>
+
+        <p className="text-[10px] tracking-widest text-[#8F3045]/50 uppercase mt-3">
           With the blessings of our families
         </p>
       </footer>

@@ -1,23 +1,89 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import ScratchInvitationPage from './ScratchInvitationPage';
 import WeddingWebsite from './WeddingWebsite';
 import { API_BASE } from '../services/api';
+import { getInitialWeddingData, saveWeddingToCache } from '../services/weddingCache';
 
 export default function PublicInvitation() {
   const { slug } = useParams();
-  const [wedding, setWedding] = useState(null);
-  const [loading, setLoading] = useState(true);
+
+  // Instant SWR initial data resolution (< 50ms FCP)
+  const initialWedding = getInitialWeddingData(slug);
+  const [wedding, setWedding] = useState(initialWedding);
+  const [loading, setLoading] = useState(!initialWedding);
   const [error, setError] = useState(null);
+
+  // Keep a ref to current wedding for resilient error handling
+  const weddingRef = useRef(wedding);
+  weddingRef.current = wedding;
 
   // THE GATE: false = show scratch entry only, true = show website only
   const [invitationOpened, setInvitationOpened] = useState(false);
 
+  const fetchWedding = useCallback(async (isUserRefresh = false) => {
+    const querySlug = slug || 'current';
+    // Only show full-page loading if we have zero cached data to display
+    if (!weddingRef.current && !isUserRefresh) {
+      setLoading(true);
+    }
+
+    try {
+      // SWR strategy: try edge-cached local proxy first, then direct API_BASE
+      const candidateEndpoints = [];
+      if (typeof window !== 'undefined') {
+        candidateEndpoints.push(`/api/weddings/public/${querySlug}`);
+      }
+      if (API_BASE && !candidateEndpoints.includes(`${API_BASE}/weddings/public/${querySlug}`)) {
+        candidateEndpoints.push(`${API_BASE}/weddings/public/${querySlug}`);
+      }
+
+      let freshData = null;
+      let lastError = null;
+
+      for (const endpoint of candidateEndpoints) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 12000);
+          const res = await fetch(endpoint, { signal: controller.signal });
+          clearTimeout(timeoutId);
+
+          if (res.ok) {
+            freshData = await res.json();
+            break;
+          }
+        } catch (fetchErr) {
+          lastError = fetchErr;
+        }
+      }
+
+      if (freshData) {
+        setWedding(freshData);
+        saveWeddingToCache(querySlug, freshData);
+        setError(null);
+
+        // Auto-update browser URL bar to match the wedding's active URL name
+        if (freshData.slug && freshData.slug !== slug && typeof window !== 'undefined') {
+          window.history.replaceState(null, '', `/invite/${freshData.slug}`);
+        }
+      } else if (!weddingRef.current) {
+        throw lastError || new Error('Invitation not found or not published yet.');
+      }
+    } catch (err) {
+      // If we already have verified data displayed, do NOT break the user's view
+      if (!weddingRef.current) {
+        setError(err.message || 'Invitation not found or not published yet.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [slug]);
+
   useEffect(() => {
     fetchWedding();
-  }, [slug]);
+  }, [fetchWedding]);
 
   useEffect(() => {
     if (wedding) {
@@ -34,29 +100,8 @@ export default function PublicInvitation() {
     }
   }, [wedding]);
 
-
-  const fetchWedding = async () => {
-    try {
-      setLoading(true);
-      const querySlug = slug || 'current';
-      const res = await fetch(`${API_BASE}/weddings/public/${querySlug}`);
-      if (!res.ok) throw new Error('Invitation not found or not published yet.');
-      const data = await res.json();
-      setWedding(data);
-
-      // Auto-update browser URL bar to match the wedding's active URL name
-      if (data.slug && data.slug !== slug) {
-        window.history.replaceState(null, '', `/invite/${data.slug}`);
-      }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ── LOADING ──────────────────────────────────────────────────────────────
-  if (loading) {
+  // ── LOADING (Only displayed if no initial or cached data exists) ─────────
+  if (loading && !wedding) {
     return (
       <div className="fixed inset-0 bg-[#070c18] flex flex-col items-center justify-center gap-4">
         <motion.div
@@ -74,8 +119,8 @@ export default function PublicInvitation() {
     );
   }
 
-  // ── ERROR ─────────────────────────────────────────────────────────────────
-  if (error || !wedding) {
+  // ── ERROR (Only displayed if no wedding data could be loaded) ────────────
+  if (error && !wedding) {
     return (
       <div className="fixed inset-0 bg-[#070c18] flex flex-col items-center justify-center text-center px-6">
         <div className="w-12 h-12 rounded-full border border-[#dfba73]/40 flex items-center justify-center mb-4">
@@ -106,7 +151,7 @@ export default function PublicInvitation() {
           key="wedding-website"
           wedding={wedding}
           apiBase={API_BASE}
-          onRefresh={fetchWedding}
+          onRefresh={() => fetchWedding(true)}
         />
       )}
     </AnimatePresence>

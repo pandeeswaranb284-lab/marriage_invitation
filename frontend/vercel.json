@@ -1,5 +1,29 @@
 {
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/uploads/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ],
   "rewrites": [
+    {
+      "source": "/uploads/(.*)",
+      "destination": "https://wedding-invitation-backend-0qez.onrender.com/uploads/$1"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"

@@ -181,6 +181,31 @@ export default function FamilySection({ id, couple, families, languageMode }) {
             />
           </div>
         )}
+
+        {/* With Best Compliments From */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.8 }}
+          className="max-w-2xl mx-auto rounded-3xl p-6 md:p-8 bg-white/95 border border-[#FCE4E8] text-center space-y-4 shadow-[0_10px_35px_rgba(232,93,117,0.08)] relative overflow-hidden"
+        >
+          <div className="flex items-center justify-center gap-3">
+            <div className="w-10 h-[1px] bg-[#E85D75]/30" />
+            <span className="font-cinzel text-[11px] font-bold tracking-[0.25em] text-[#E85D75] uppercase">
+              With Best Compliments From
+            </span>
+            <div className="w-10 h-[1px] bg-[#E85D75]/30" />
+          </div>
+          <div className="space-y-1.5">
+            <p className="font-serif italic text-xl md:text-2xl font-bold text-[#8F3045]">
+              M. Gopi <span className="text-xs font-sans not-italic font-semibold text-[#8F3045]/70">B.E.,</span> &nbsp;—&nbsp; T. Yogapriya <span className="text-xs font-sans not-italic font-semibold text-[#8F3045]/70">B.E., M.E.</span>
+            </p>
+            <p className="font-serif italic text-base md:text-lg font-bold text-[#E85D75]">
+              G.Y. Dhruvan
+            </p>
+          </div>
+        </motion.div>
       </div>
     </section>
   );
