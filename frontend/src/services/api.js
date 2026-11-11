@@ -1,45 +1,63 @@
-const rawApiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE;
 
-export const PROD_BACKEND_ORIGIN = 'https://wedding-invitation-backend-0qez.onrender.com';
+const rawApiUrl =
+  import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE;
 
-export const API_BASE = rawApiUrl
-  ? (rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl.replace(/\/$/, '')}/api`)
-  : (typeof window !== 'undefined' && (window.location.port === '5173' || window.location.port === '5174')
-    ? 'http://127.0.0.1:8000/api'
-    : '/api');
+// Correct production Render backend
+export const PROD_BACKEND_ORIGIN =
+  'https://wedding-invitation-backend-we5q.onrender.com';
 
-export const getBackendOrigin = () => {
-  if (rawApiUrl) {
-    return rawApiUrl.replace(/\/api\/?$/, '').replace(/\/$/, '');
-  }
-  if (typeof window !== 'undefined' && (window.location.port === '5173' || window.location.port === '5174')) {
-    return 'http://127.0.0.1:8000';
-  }
-  return PROD_BACKEND_ORIGIN;
+// Resolve backend origin
+const normalizeOrigin = (url) => {
+  if (!url) return '';
+
+  return url
+    .replace(/\/api\/?$/, '')
+    .replace(/\/+$/, '');
 };
 
+const BACKEND_ORIGIN = rawApiUrl
+  ? normalizeOrigin(rawApiUrl)
+  : (typeof window !== 'undefined' &&
+      (window.location.port === '5173' ||
+       window.location.port === '5174')
+      ? 'http://127.0.0.1:8000'
+      : PROD_BACKEND_ORIGIN);
+
+// API base URL
+export const API_BASE = `${BACKEND_ORIGIN}/api`;
+
+// Backend origin getter
+export const getBackendOrigin = () => BACKEND_ORIGIN;
+
+// Resolve uploaded image and media URLs
 export const resolveMediaUrl = (url) => {
   if (!url) return '';
+
   if (typeof url !== 'string') return url;
-  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
+
+  // Preserve absolute and browser-generated URLs
+  if (
+    url.startsWith('http://') ||
+    url.startsWith('https://') ||
+    url.startsWith('data:') ||
+    url.startsWith('blob:')
+  ) {
     return url;
   }
-  // Static uploads are deployed with the frontend on Vercel CDN with immutable caching
-  if (url.startsWith('/uploads/') || url.startsWith('uploads/')) {
-    return url.startsWith('/') ? url : `/${url}`;
-  }
-  const origin = getBackendOrigin();
-  if (origin) {
-    return `${origin}${url.startsWith('/') ? '' : '/'}${url}`;
-  }
-  return url;
+
+  // Resolve backend uploads from Render
+  return `${BACKEND_ORIGIN}/${url.replace(/^\/+/, '')}`;
 };
 
+// API health check
 export const api = {
   getHealth: async () => {
     const response = await fetch(`${API_BASE}/health`);
+
+    if (!response.ok) {
+      throw new Error(`Backend health check failed: ${response.status}`);
+    }
+
     return response.json();
   }
 };
-
-
