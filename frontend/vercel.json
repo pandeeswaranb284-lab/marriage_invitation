@@ -22,11 +22,11 @@
   "rewrites": [
     {
       "source": "/uploads/(.*)",
-      "destination": "https://wedding-invitation-backend-0qez.onrender.com/uploads/$1"
+      "destination": "https://wedding-invitation-backend-we5q.onrender.com/uploads/$1"
     },
     {
       "source": "/api/(.*)",
-      "destination": "https://wedding-invitation-backend-0qez.onrender.com/api/$1"
+      "destination": "https://wedding-invitation-backend-we5q.onrender.com/api/$1"
     },
     {
       "source": "/(.*)",

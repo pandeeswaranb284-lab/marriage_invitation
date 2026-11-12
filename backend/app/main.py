@@ -36,6 +36,11 @@ try:
                 conn.commit()
             except Exception:
                 pass
+        try:
+            conn.execute(text("ALTER TABLE weddings ADD COLUMN previous_slug VARCHAR(120)"))
+            conn.commit()
+        except Exception:
+            pass
 except Exception as exc:
     logger.warning(f"Column migration note: {exc}")
 

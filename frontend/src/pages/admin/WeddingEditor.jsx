@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { API_BASE, resolveMediaUrl } from '../../services/api';
 import { notifyAdminUpdate } from '../../services/realtimeSync';
+import { saveWeddingToCache } from '../../services/weddingCache';
 
 const slugify = (groom, bride) => {
   const clean = `${groom || ''} ${bride || ''}`
@@ -56,6 +57,7 @@ export default function WeddingEditor() {
   const [photoUploadNotice, setPhotoUploadNotice] = useState('');
   const [photoUploadError, setPhotoUploadError] = useState('');
   const [isDirty, setIsDirty] = useState(false);
+  const [originalSlug, setOriginalSlug] = useState('');
   const photoInputRef = useRef(null);
 
   const token = localStorage.getItem('admin_token');
@@ -165,20 +167,44 @@ export default function WeddingEditor() {
     fetchWedding();
   }, []);
 
+  // Prevent accidental navigation with unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
+
   const fetchWedding = async () => {
     try {
-      const res = await fetch(`${apiBase}/weddings/admin/current`, {
+      const res = await fetch(`${apiBase}/weddings/admin/current?t=${Date.now()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
         setWedding(data);
+        if (data?.slug) {
+          setOriginalSlug(data.slug);
+        }
       }
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDiscard = () => {
+    if (isDirty && !window.confirm('Discard unsaved changes and reload from database?')) {
+      return;
+    }
+    fetchWedding();
+    setIsDirty(false);
+    setNotice('Reloaded latest saved settings from database.');
   };
 
   const generateTitle = (groom, bride) => {
@@ -192,36 +218,37 @@ export default function WeddingEditor() {
 
   const handleGroomChange = (val) => {
     setIsDirty(true);
-    const nextSlug = slugify(val, wedding?.bride_name);
-    const gInitial = val?.trim()?.[0]?.toUpperCase() || 'G';
-    const bInitial = wedding?.bride_name?.trim()?.[0]?.toUpperCase() || 'B';
-    const shouldUpdateInitials = !wedding?.gold_seal_initials || wedding.gold_seal_initials === 'A × P';
-    const nextTitle = generateTitle(val, wedding?.bride_name);
-    
     setWedding(prev => ({
       ...prev,
       groom_name: val,
-      title: nextTitle,
-      slug: nextSlug,
-      gold_seal_initials: shouldUpdateInitials ? `${gInitial} × ${bInitial}` : prev.gold_seal_initials,
     }));
   };
 
   const handleBrideChange = (val) => {
     setIsDirty(true);
-    const nextSlug = slugify(wedding?.groom_name, val);
-    const gInitial = wedding?.groom_name?.trim()?.[0]?.toUpperCase() || 'G';
-    const bInitial = val?.trim()?.[0]?.toUpperCase() || 'B';
-    const shouldUpdateInitials = !wedding?.gold_seal_initials || wedding.gold_seal_initials === 'A × P';
-    const nextTitle = generateTitle(wedding?.groom_name, val);
-
     setWedding(prev => ({
       ...prev,
       bride_name: val,
-      title: nextTitle,
-      slug: nextSlug,
-      gold_seal_initials: shouldUpdateInitials ? `${gInitial} × ${bInitial}` : prev.gold_seal_initials,
     }));
+  };
+
+  const autoGenerateTitle = () => {
+    setIsDirty(true);
+    const nextTitle = generateTitle(wedding?.groom_name, wedding?.bride_name);
+    setWedding(prev => ({ ...prev, title: nextTitle }));
+  };
+
+  const autoGenerateSlug = () => {
+    setIsDirty(true);
+    const nextSlug = slugify(wedding?.groom_name, wedding?.bride_name);
+    setWedding(prev => ({ ...prev, slug: nextSlug }));
+  };
+
+  const autoGenerateInitials = () => {
+    setIsDirty(true);
+    const gInitial = wedding?.groom_name?.trim()?.[0]?.toUpperCase() || 'G';
+    const bInitial = wedding?.bride_name?.trim()?.[0]?.toUpperCase() || 'B';
+    setWedding(prev => ({ ...prev, gold_seal_initials: `${gInitial} × ${bInitial}` }));
   };
 
   const updateCoupleField = (field, val) => {
@@ -241,7 +268,16 @@ export default function WeddingEditor() {
     setNotice('');
 
     try {
-      const targetSlug = wedding.slug || 'arun-priya';
+      const targetSlug = originalSlug || wedding.slug || 'current';
+      const coupleArtworkDetails = wedding.couple_details ? {
+        artwork_url: wedding.couple_details.artwork_url,
+        artwork_size: wedding.couple_details.artwork_size,
+        artwork_fit: wedding.couple_details.artwork_fit,
+        artwork_position: wedding.couple_details.artwork_position,
+        artwork_zoom: wedding.couple_details.artwork_zoom,
+      } : undefined;
+
+      // 1. Send PUT request
       const res = await fetch(`${apiBase}/weddings/admin/${targetSlug}`, {
         method: 'PUT',
         headers: {
@@ -261,25 +297,41 @@ export default function WeddingEditor() {
           music_enabled: wedding.music_enabled,
           music_url: wedding.music_url,
           is_published: wedding.is_published,
-          couple_details: wedding.couple_details,
+          couple_details: coupleArtworkDetails,
         }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        const finalSlug = data.slug || wedding.slug;
-        if (data.slug) {
-          setWedding(prev => ({ ...prev, slug: data.slug }));
-        }
-        setIsDirty(false);
-        notifyAdminUpdate(finalSlug, { updated_at: data.updated_at, source: 'wedding_editor' });
-        setNotice(`✓ Saved successfully & synchronized live across all devices! Live URL: /invite/${finalSlug}`);
-      } else {
+      // 2. Verify backend response
+      if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.detail || 'Update failed');
+        throw new Error(errJson.detail || 'Save failed. Please check form values.');
       }
+
+      const saveResult = await res.json();
+      const updatedSlug = saveResult.slug || wedding.slug;
+
+      // 3. Fetch server-confirmed record from backend
+      const verifyRes = await fetch(`${apiBase}/weddings/admin/${updatedSlug}?t=${Date.now()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const confirmedData = verifyRes.ok ? await verifyRes.json() : (saveResult.wedding || saveResult);
+
+      // 4. Update Admin state with confirmed values
+      setWedding(confirmedData);
+      setOriginalSlug(confirmedData.slug || updatedSlug);
+      setIsDirty(false);
+
+      // 5. Update frontend cache
+      saveWeddingToCache(confirmedData.slug, confirmedData);
+      saveWeddingToCache('current', confirmedData);
+
+      // Notify realtime sync
+      notifyAdminUpdate(confirmedData.slug, { updated_at: confirmedData.updated_at, source: 'wedding_editor' });
+
+      // 6. Display success notice
+      setNotice(`✓ Saved & verified! Details confirmed in database. Live URL: /invite/${confirmedData.slug}`);
     } catch (err) {
-      setNotice(err.message || 'Failed to update. Please check values.');
+      setNotice(err.message || 'Failed to update. Unsaved changes have been kept in your form.');
     } finally {
       setSaving(false);
     }
@@ -327,27 +379,45 @@ export default function WeddingEditor() {
         </div>
       )}
 
-      {/* Dynamic Invitation URL Banner */}
-      <div className="p-4 rounded-xl bg-gradient-to-r from-navy-950 via-[#0e1628] to-navy-950 border border-gold-500/40 space-y-2">
+      {/* Live Invitation URL & Slug Configurator */}
+      <div className="p-4 rounded-xl bg-gradient-to-r from-navy-950 via-[#0e1628] to-navy-950 border border-gold-500/40 space-y-3">
         <div className="flex items-center justify-between">
           <span className="font-cinzel text-xs font-bold text-gold-300 uppercase flex items-center gap-2">
             <Globe className="w-4 h-4 text-gold-400" />
-            Live Invitation URL
+            Live Invitation URL & Slug
           </span>
-          <span className="text-[10px] font-medium text-emerald-300 bg-emerald-950/70 px-2.5 py-0.5 rounded-full border border-emerald-500/40">
-            Auto-Updates with Names
+          <span className="text-[10px] font-medium text-gold-300 bg-gold-950/70 px-2.5 py-0.5 rounded-full border border-gold-500/40">
+            Dedicated URL Path
           </span>
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-          <div className="flex-1 px-3 py-2 rounded-lg bg-navy-900/90 border border-gold-500/30 text-gold-200 font-mono text-xs flex items-center overflow-x-auto">
-            <span className="text-gold-400/60 mr-1">{window.location.origin}/invite/</span>
-            <span className="text-gold-300 font-bold">{wedding?.slug}</span>
+          <div className="flex-1 flex items-center px-3 py-2 rounded-lg bg-navy-900/90 border border-gold-500/30 text-gold-200 font-mono text-xs overflow-x-auto">
+            <span className="text-gold-400/60 mr-1 select-none">{typeof window !== 'undefined' ? window.location.origin : ''}/invite/</span>
+            <input
+              type="text"
+              value={wedding?.slug || ''}
+              onChange={(e) => {
+                setIsDirty(true);
+                const clean = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+                setWedding((prev) => ({ ...prev, slug: clean }));
+              }}
+              placeholder="k-prabhu-m-nalini"
+              className="flex-1 bg-transparent text-gold-300 font-bold focus:outline-none"
+            />
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={autoGenerateSlug}
+              className="px-3.5 py-2 rounded-lg bg-navy-900 border border-gold-500/40 text-gold-300 font-cinzel text-xs flex items-center gap-1.5 hover:text-white"
+              title="Suggest slug from current Groom & Bride names"
+            >
+              <span>Suggest Slug</span>
+            </button>
             <a
-              href={`/invite/${wedding?.slug}`}
+              href={`/invite/${wedding?.slug || 'current'}`}
               target="_blank"
               rel="noreferrer"
               className="px-3.5 py-2 rounded-lg bg-gradient-to-r from-gold-600 to-gold-500 text-navy-950 font-cinzel font-bold text-xs flex items-center gap-1.5 hover:brightness-110 shadow-sm"
@@ -358,8 +428,8 @@ export default function WeddingEditor() {
             <button
               type="button"
               onClick={() => {
-                navigator.clipboard.writeText(`${window.location.origin}/invite/${wedding?.slug}`);
-                setNotice(`Copied ${window.location.origin}/invite/${wedding?.slug} to clipboard!`);
+                navigator.clipboard.writeText(`${window.location.origin}/invite/${wedding?.slug || 'current'}`);
+                setNotice(`Copied ${window.location.origin}/invite/${wedding?.slug || 'current'} to clipboard!`);
               }}
               className="px-3.5 py-2 rounded-lg bg-navy-900 border border-gold-500/40 text-gold-300 font-cinzel text-xs flex items-center gap-1.5 hover:text-white"
             >
@@ -369,7 +439,7 @@ export default function WeddingEditor() {
           </div>
         </div>
         <p className="text-[11px] text-gold-200/60">
-          Changing Groom Name or Bride Name below immediately recalculates this URL name.
+          Your URL path is independently preserved and will not be overwritten automatically when typing names.
         </p>
       </div>
 
@@ -380,23 +450,23 @@ export default function WeddingEditor() {
               Browser Tab Title (Website Title)
             </label>
             <span className="text-[10px] font-medium text-emerald-300 bg-emerald-950/70 px-2 py-0.5 rounded-full border border-emerald-500/40">
-              Auto-Syncs with Names
+              Browser Title
             </span>
           </div>
           <div className="flex gap-2">
             <input
               type="text"
               value={wedding?.title || ''}
-              onChange={(e) => setWedding({ ...wedding, title: e.target.value })}
-              placeholder="e.g. Wedding Invitation | Arun & Priya"
+              onChange={(e) => {
+                setIsDirty(true);
+                setWedding({ ...wedding, title: e.target.value });
+              }}
+              placeholder="e.g. Wedding Invitation | Prabhu & Nalini"
               className="flex-1 px-4 py-2.5 rounded-lg bg-navy-950 border border-gold-500/40 text-white text-sm focus:outline-none focus:border-gold-400"
             />
             <button
               type="button"
-              onClick={() => {
-                const auto = generateTitle(wedding?.groom_name, wedding?.bride_name);
-                setWedding({ ...wedding, title: auto });
-              }}
+              onClick={autoGenerateTitle}
               className="px-3.5 py-2 rounded-lg bg-navy-900 border border-gold-500/40 text-gold-300 font-cinzel text-xs flex items-center gap-1.5 hover:text-white"
               title="Auto-generate title from Groom and Bride names"
             >
@@ -404,7 +474,7 @@ export default function WeddingEditor() {
             </button>
           </div>
           <p className="text-[11px] text-gold-200/50 mt-1">
-            Automatically updates when you type Groom and Bride names below. This title appears in the browser tab for guests.
+            This title appears in the browser tab for guests.
           </p>
         </div>
 
@@ -489,14 +559,27 @@ export default function WeddingEditor() {
           </div>
 
           <div>
-            <label className="block text-xs font-cinzel tracking-wider text-gold-300 uppercase mb-1.5">
-              Gold Seal Monogram / Initials
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-cinzel tracking-wider text-gold-300 uppercase">
+                Gold Seal Monogram / Initials
+              </label>
+              <button
+                type="button"
+                onClick={autoGenerateInitials}
+                className="text-[10px] text-gold-400 hover:text-gold-200 underline"
+                title="Generate monogram initials from names"
+              >
+                Auto-Generate
+              </button>
+            </div>
             <input
               type="text"
               value={wedding?.gold_seal_initials || ''}
-              onChange={(e) => setWedding({ ...wedding, gold_seal_initials: e.target.value })}
-              placeholder="A × P"
+              onChange={(e) => {
+                setIsDirty(true);
+                setWedding({ ...wedding, gold_seal_initials: e.target.value });
+              }}
+              placeholder="P × N"
               className="w-full px-4 py-2.5 rounded-lg bg-navy-950 border border-gold-500/40 text-white text-sm focus:outline-none focus:border-gold-400"
             />
           </div>
@@ -963,14 +1046,26 @@ export default function WeddingEditor() {
           </div>
         </div>
 
-        <button
-          type="submit"
-          disabled={saving}
-          className="px-8 py-3 rounded-full bg-gradient-to-r from-gold-600 via-gold-400 to-gold-600 text-navy-950 font-cinzel font-bold text-xs tracking-widest uppercase hover:brightness-110 shadow-gold-glow flex items-center space-x-2"
-        >
-          <Save className="w-4 h-4" />
-          <span>{saving ? 'SAVING...' : 'SAVE CHANGES'}</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-4 pt-4 border-t border-gold-500/20">
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-8 py-3 rounded-full bg-gradient-to-r from-gold-600 via-gold-400 to-gold-600 text-navy-950 font-cinzel font-bold text-xs tracking-widest uppercase hover:brightness-110 shadow-gold-glow flex items-center space-x-2"
+          >
+            <Save className="w-4 h-4" />
+            <span>{saving ? 'SAVING...' : 'SAVE CHANGES'}</span>
+          </button>
+
+          {isDirty && (
+            <button
+              type="button"
+              onClick={handleDiscard}
+              className="px-6 py-3 rounded-full bg-navy-900 border border-rose-500/40 text-rose-300 font-cinzel font-semibold text-xs tracking-wider uppercase hover:bg-rose-950/40 transition-colors"
+            >
+              Discard Changes
+            </button>
+          )}
+        </div>
       </form>
     </div>
   );

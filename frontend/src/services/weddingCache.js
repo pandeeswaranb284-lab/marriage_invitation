@@ -57,9 +57,9 @@ export function getInitialWeddingData(slug) {
     }
   }
 
-  // 2. Return verified default baseline for instant 0ms first paint
+  // 2. Return verified default baseline for instant 0ms first paint (tagged as fallback baseline)
   if (isDefaultWeddingSlug(slug)) {
-    return VERIFIED_WEDDING_DATA;
+    return { ...VERIFIED_WEDDING_DATA, _isFallbackBaseline: true };
   }
 
   return null;

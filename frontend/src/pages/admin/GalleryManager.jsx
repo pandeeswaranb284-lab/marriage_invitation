@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Plus, Trash2, CheckCircle2, Image as ImageIcon, ExternalLink } from 'lucide-react';
 import { API_BASE } from '../../services/api';
 import { notifyAdminUpdate } from '../../services/realtimeSync';
+import { saveWeddingToCache } from '../../services/weddingCache';
 
 export default function GalleryManager() {
   const [wedding, setWedding] = useState(null);
@@ -23,12 +24,16 @@ export default function GalleryManager() {
 
   const fetchWedding = async () => {
     try {
-      const res = await fetch(`${apiBase}/weddings/admin/current`, {
+      const res = await fetch(`${apiBase}/weddings/admin/current?t=${Date.now()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
         setWedding(data);
+        if (data?.slug) {
+          saveWeddingToCache(data.slug, data);
+          saveWeddingToCache('current', data);
+        }
       }
     } catch (err) {
       console.error(err);

@@ -7,6 +7,8 @@ import {
   Calendar,
   Sparkles,
   MessageSquare,
+  UserCheck,
+  Image as ImageIcon,
   Settings,
   ExternalLink,
   LogOut,
@@ -54,6 +56,8 @@ export default function AdminLayout() {
     { to: '/admin/marriage',  icon: Sparkles,          label: 'Marriage Ceremony' },
     { to: '/admin/reception', icon: Sparkles,          label: 'Wedding Reception' },
     { to: '/admin/wishes',    icon: MessageSquare,     label: 'Blessings Manager' },
+    { to: '/admin/rsvps',     icon: UserCheck,         label: 'RSVP Guest List' },
+    { to: '/admin/gallery',   icon: ImageIcon,         label: 'Photo Gallery' },
     { to: '/admin/settings',  icon: Settings,          label: 'Theme & Language' },
   ];
 

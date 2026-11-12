@@ -10,6 +10,7 @@ class Wedding(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     slug = Column(String(120), unique=True, index=True, nullable=False)
+    previous_slug = Column(String(120), nullable=True, index=True)
     title = Column(String(200), nullable=False, default="Wedding Invitation")
     groom_name = Column(String(150), nullable=False)
     bride_name = Column(String(150), nullable=False)

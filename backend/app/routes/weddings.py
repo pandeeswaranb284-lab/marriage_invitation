@@ -51,23 +51,41 @@ def generate_wedding_slug(groom: str, bride: str) -> str:
 
 
 def find_wedding_by_slug_or_default(db: Session, slug: str) -> Optional[Wedding]:
-    if slug and slug != "current":
-        wedding = db.query(Wedding).filter(Wedding.slug == slug).first()
+    clean_slug = (slug or "").strip().lower()
+    if not clean_slug or clean_slug == "current":
+        # Consistently return the primary/active wedding
+        wedding = db.query(Wedding).filter(Wedding.is_published == True).first()
+        if not wedding:
+            wedding = db.query(Wedding).order_by(Wedding.id.asc()).first()
+        return wedding
+
+    # 1. Exact slug lookup takes priority
+    wedding = db.query(Wedding).filter(Wedding.slug == clean_slug).first()
+    if wedding:
+        return wedding
+
+    # 2. Check previous slug (so previous URLs don't break unexpectedly)
+    wedding = db.query(Wedding).filter(Wedding.previous_slug == clean_slug).first()
+    if wedding:
+        return wedding
+
+    # 3. Legacy alias support for default wedding
+    norm = clean_slug.replace("-", "")
+    if norm in ("kprabhumanalini", "prabhunalini"):
+        wedding = db.query(Wedding).filter(
+            (Wedding.slug == "k-prabhu-m-nalini") | 
+            (Wedding.slug == "prabhu-nalini") |
+            (Wedding.previous_slug == "k-prabhu-m-nalini") | 
+            (Wedding.previous_slug == "prabhu-nalini")
+        ).first()
         if wedding:
             return wedding
-        norm = slug.replace("-", "").lower()
-        if "prabhu" in norm and "nalini" in norm:
-            wedding = db.query(Wedding).filter(
-                (Wedding.slug == "k-prabhu-m-nalini") | (Wedding.slug == "prabhu-nalini")
-            ).first()
-            if wedding:
-                return wedding
-    wedding = db.query(Wedding).filter(Wedding.slug == "k-prabhu-m-nalini").first()
-    if not wedding:
-        wedding = db.query(Wedding).filter(Wedding.slug == "prabhu-nalini").first()
-    if not wedding:
-        wedding = db.query(Wedding).order_by(Wedding.id.asc()).first()
-    return wedding
+        # If there is only one wedding in the database, allow legacy alias
+        if db.query(Wedding).count() == 1:
+            return db.query(Wedding).first()
+
+    # Invalid slug: do not silently return an unrelated wedding
+    return None
 
 
 # --- PUBLIC ENDPOINTS ---
@@ -91,6 +109,7 @@ def get_public_wedding(slug: str, response: Response, db: Session = Depends(get_
     data = {
         "id": wedding.id,
         "slug": wedding.slug,
+        "previous_slug": wedding.previous_slug,
         "title": wedding.title,
         "groom_name": wedding.groom_name,
         "bride_name": wedding.bride_name,
@@ -286,6 +305,7 @@ def get_admin_wedding(slug: str, db: Session = Depends(get_db), _: object = Depe
     return {
         "id": wedding.id,
         "slug": wedding.slug,
+        "previous_slug": getattr(wedding, "previous_slug", None),
         "title": wedding.title,
         "groom_name": wedding.groom_name,
         "bride_name": wedding.bride_name,
@@ -307,6 +327,7 @@ def get_admin_wedding(slug: str, db: Session = Depends(get_db), _: object = Depe
         "gallery_images": wedding.gallery_images,
         "rsvps": wedding.rsvps,
         "guest_wishes": wedding.guest_wishes,
+        "updated_at": wedding.updated_at,
     }
 
 
@@ -462,6 +483,9 @@ def update_admin_wedding(slug: str, payload: WeddingUpdate, db: Session = Depend
     if not wedding:
         raise HTTPException(status_code=404, detail="Wedding not found")
 
+    old_slug = wedding.slug  # Preserve original slug before ANY modification
+    logger.info(f"Updating wedding ID={wedding.id}, current slug='{old_slug}', requested slug param='{slug}'")
+
     # Update top-level wedding properties
     top_level_fields = [
         "title", "wedding_date", "wedding_time",
@@ -477,21 +501,32 @@ def update_admin_wedding(slug: str, payload: WeddingUpdate, db: Session = Depend
     groom_updated = payload.groom_name is not None
     bride_updated = payload.bride_name is not None
     if groom_updated:
-        wedding.groom_name = payload.groom_name
+        wedding.groom_name = payload.groom_name.strip()
     if bride_updated:
-        wedding.bride_name = payload.bride_name
+        wedding.bride_name = payload.bride_name.strip()
 
     # Automatically generate or clean title
     if payload.title and payload.title.strip():
         wedding.title = re.sub(r'\s+', ' ', payload.title).strip()
     elif groom_updated or bride_updated:
         if wedding.groom_name and wedding.bride_name:
-            wedding.title = f"Wedding Invitation | {wedding.groom_name.strip()} & {wedding.bride_name.strip()}"
+            wedding.title = f"Wedding Invitation | {wedding.groom_name} & {wedding.bride_name}"
 
+    # Determine desired slug: only change if explicitly provided or if wedding has no slug yet
+    target_new_slug = None
     if payload.slug and payload.slug.strip():
-        wedding.slug = payload.slug.strip().lower()
-    elif groom_updated or bride_updated:
-        wedding.slug = generate_wedding_slug(wedding.groom_name, wedding.bride_name)
+        target_new_slug = payload.slug.strip().lower()
+    elif not wedding.slug and (groom_updated or bride_updated):
+        target_new_slug = generate_wedding_slug(wedding.groom_name, wedding.bride_name)
+
+    if target_new_slug and target_new_slug != old_slug:
+        # Check collision with other weddings
+        existing = db.query(Wedding).filter(Wedding.slug == target_new_slug, Wedding.id != wedding.id).first()
+        if existing:
+            target_new_slug = f"{target_new_slug}-{wedding.id}"
+        wedding.previous_slug = old_slug
+        wedding.slug = target_new_slug
+        logger.info(f"Wedding ID={wedding.id} slug updated: '{old_slug}' -> '{wedding.slug}' (previous preserved: '{wedding.previous_slug}')")
 
     # Update Couple Details
     if payload.couple_details:
@@ -499,8 +534,13 @@ def update_admin_wedding(slug: str, payload: WeddingUpdate, db: Session = Depend
             wedding.couple_details = CoupleDetail(wedding_id=wedding.id)
             db.add(wedding.couple_details)
         for k, v in payload.couple_details.model_dump(exclude_unset=True).items():
-            if k != "id":
+            if k != "id" and v is not None:
                 setattr(wedding.couple_details, k, v)
+        # Keep couple_details groom/bride names in sync with wedding
+        if groom_updated and (not getattr(payload.couple_details, "groom_name", None)):
+            wedding.couple_details.groom_name = wedding.groom_name
+        if bride_updated and (not getattr(payload.couple_details, "bride_name", None)):
+            wedding.couple_details.bride_name = wedding.bride_name
 
     # Update Families
     if payload.families:
@@ -508,7 +548,7 @@ def update_admin_wedding(slug: str, payload: WeddingUpdate, db: Session = Depend
             wedding.families = Family(wedding_id=wedding.id)
             db.add(wedding.families)
         for k, v in payload.families.model_dump(exclude_unset=True).items():
-            if k != "id":
+            if k != "id" and v is not None:
                 setattr(wedding.families, k, v)
 
     # Update Marriage Details
@@ -517,7 +557,7 @@ def update_admin_wedding(slug: str, payload: WeddingUpdate, db: Session = Depend
             wedding.marriage_details = MarriageDetail(wedding_id=wedding.id, ceremony_date=wedding.wedding_date, venue_name="", venue_address="")
             db.add(wedding.marriage_details)
         for k, v in payload.marriage_details.model_dump(exclude_unset=True).items():
-            if k != "id":
+            if k != "id" and v is not None:
                 setattr(wedding.marriage_details, k, v)
 
     # Update Reception Details
@@ -526,13 +566,17 @@ def update_admin_wedding(slug: str, payload: WeddingUpdate, db: Session = Depend
             wedding.reception_details = ReceptionDetail(wedding_id=wedding.id, reception_date=wedding.wedding_date, venue_name="", venue_address="")
             db.add(wedding.reception_details)
         for k, v in payload.reception_details.model_dump(exclude_unset=True).items():
-            if k != "id":
+            if k != "id" and v is not None:
                 setattr(wedding.reception_details, k, v)
 
-    old_slug = wedding.slug
     wedding.updated_at = datetime.utcnow()
-    db.commit()
-    db.refresh(wedding)
+    try:
+        db.commit()
+        db.refresh(wedding)
+    except Exception as exc:
+        db.rollback()
+        logger.error(f"Failed to commit wedding update to database: {exc}")
+        raise HTTPException(status_code=500, detail=f"Database update failed: {str(exc)}")
 
     updated_iso = wedding.updated_at.isoformat() if wedding.updated_at else datetime.utcnow().isoformat()
     event_payload = {
@@ -546,10 +590,38 @@ def update_admin_wedding(slug: str, payload: WeddingUpdate, db: Session = Depend
     if old_slug and old_slug != wedding.slug:
         event_bus.publish(old_slug, event_payload)
 
+    confirmed_data = {
+        "id": wedding.id,
+        "slug": wedding.slug,
+        "previous_slug": wedding.previous_slug,
+        "title": wedding.title,
+        "groom_name": wedding.groom_name,
+        "bride_name": wedding.bride_name,
+        "wedding_date": wedding.wedding_date,
+        "wedding_time": wedding.wedding_time,
+        "opening_blessing": wedding.opening_blessing,
+        "invitation_cover_style": wedding.invitation_cover_style,
+        "gold_seal_initials": wedding.gold_seal_initials,
+        "tagline": wedding.tagline,
+        "language_mode": wedding.language_mode,
+        "music_enabled": wedding.music_enabled,
+        "music_url": wedding.music_url,
+        "theme": wedding.theme,
+        "is_published": wedding.is_published,
+        "couple_details": wedding.couple_details,
+        "families": wedding.families,
+        "marriage_details": wedding.marriage_details,
+        "reception_details": wedding.reception_details,
+        "gallery_images": wedding.gallery_images,
+        "updated_at": wedding.updated_at,
+    }
+
     return {
         "message": "Wedding updated successfully",
         "slug": wedding.slug,
+        "old_slug": old_slug,
         "updated_at": updated_iso,
+        "wedding": confirmed_data,
     }
 
 

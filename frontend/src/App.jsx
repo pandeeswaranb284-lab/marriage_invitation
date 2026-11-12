@@ -10,6 +10,8 @@ import CoupleEditor      from './pages/admin/CoupleEditor';
 import FamilyEditor      from './pages/admin/FamilyEditor';
 import CeremonyEditor    from './pages/admin/CeremonyEditor';
 import WishManager       from './pages/admin/WishManager';
+import RSVPManager       from './pages/admin/RSVPManager';
+import GalleryManager    from './pages/admin/GalleryManager';
 import ThemeSettings     from './pages/admin/ThemeSettings';
 
 export default function App() {
@@ -33,6 +35,8 @@ export default function App() {
         <Route path="marriage"   element={<CeremonyEditor type="marriage" />} />
         <Route path="reception"  element={<CeremonyEditor type="reception" />} />
         <Route path="wishes"     element={<WishManager />} />
+        <Route path="rsvps"      element={<RSVPManager />} />
+        <Route path="gallery"    element={<GalleryManager />} />
         <Route path="settings"   element={<ThemeSettings />} />
       </Route>
 

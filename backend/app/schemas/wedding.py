@@ -149,6 +149,7 @@ class GuestWishOut(BaseModel):
 class WeddingPublic(BaseModel):
     id: int
     slug: str
+    previous_slug: Optional[str] = None
     title: str
     groom_name: str
     bride_name: str
@@ -180,6 +181,7 @@ class WeddingPublic(BaseModel):
 class WeddingUpdate(BaseModel):
     title: Optional[str] = None
     slug: Optional[str] = None
+    previous_slug: Optional[str] = None
     groom_name: Optional[str] = None
     bride_name: Optional[str] = None
     wedding_date: Optional[datetime] = None

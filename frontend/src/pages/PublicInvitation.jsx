@@ -36,17 +36,18 @@ export default function PublicInvitation() {
       const candidateEndpoints = [];
       const backendOrigin = getBackendOrigin();
 
-      if (typeof window !== 'undefined') {
-        candidateEndpoints.push(`/api/weddings/public/${querySlug}${cacheBustQuery}`);
-      }
       if (backendOrigin) {
         candidateEndpoints.push(`${backendOrigin}/api/weddings/public/${querySlug}${cacheBustQuery}`);
+      }
+      if (typeof window !== 'undefined') {
+        candidateEndpoints.push(`/api/weddings/public/${querySlug}${cacheBustQuery}`);
       }
       if (API_BASE && !candidateEndpoints.includes(`${API_BASE}/weddings/public/${querySlug}${cacheBustQuery}`)) {
         candidateEndpoints.push(`${API_BASE}/weddings/public/${querySlug}${cacheBustQuery}`);
       }
 
       let freshData = null;
+      let isFallbackResponse = false;
       let lastError = null;
 
       for (const endpoint of candidateEndpoints) {
@@ -62,8 +63,19 @@ export default function PublicInvitation() {
           clearTimeout(timeoutId);
 
           if (res.ok) {
-            freshData = await res.json();
-            break;
+            const isFallback = res.headers.get('x-cache-fallback') === 'true';
+            const parsed = await res.json();
+            if (isFallback) {
+              isFallbackResponse = true;
+              // Only adopt fallback data if we have zero data or only fallback baseline
+              if (!weddingRef.current || weddingRef.current._isFallbackBaseline) {
+                freshData = parsed;
+              }
+            } else {
+              freshData = parsed;
+              isFallbackResponse = false;
+              break; // Definitive fresh database response from Supabase
+            }
           }
         } catch (fetchErr) {
           lastError = fetchErr;
@@ -71,10 +83,20 @@ export default function PublicInvitation() {
       }
 
       if (freshData) {
-        setWedding(freshData);
-        saveWeddingToCache(querySlug, freshData);
-        if (freshData.slug) {
-          saveWeddingToCache(freshData.slug, freshData);
+        // Authoritative database data always updates state and persists to cache
+        if (!isFallbackResponse) {
+          const cleanData = { ...freshData };
+          delete cleanData._isFallbackBaseline;
+          setWedding(cleanData);
+          weddingRef.current = cleanData;
+          saveWeddingToCache(querySlug, cleanData);
+          if (cleanData.slug) {
+            saveWeddingToCache(cleanData.slug, cleanData);
+          }
+          saveWeddingToCache('current', cleanData);
+        } else if (!weddingRef.current || weddingRef.current._isFallbackBaseline) {
+          setWedding(freshData);
+          weddingRef.current = freshData;
         }
         setError(null);
 

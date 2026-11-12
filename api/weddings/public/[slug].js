@@ -149,7 +149,7 @@ export default async function handler(request) {
   const isVersion = segments[segments.length - 1] === 'version';
   const slug = (isVersion ? segments[segments.length - 2] : segments[segments.length - 1]) || 'current';
 
-  const backendOrigin = process.env.VITE_API_URL || 'https://wedding-invitation-backend-0qez.onrender.com';
+  const backendOrigin = process.env.VITE_API_URL || 'https://wedding-invitation-backend-we5q.onrender.com';
   const queryStr = url.search || '';
   const endpointPath = isVersion ? `/api/weddings/public/${slug}/version` : `/api/weddings/public/${slug}`;
   const targetUrl = `${backendOrigin.replace(/\/$/, '')}${endpointPath}${queryStr}`;
@@ -162,7 +162,7 @@ export default async function handler(request) {
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000); // 12s timeout to accommodate Render warm-up
+    const timeout = setTimeout(() => controller.abort(), 25000); // 25s timeout to accommodate Render warm-up
 
     const upstreamRes = await fetch(targetUrl, {
       signal: controller.signal,
@@ -189,28 +189,39 @@ export default async function handler(request) {
         },
       });
     }
+
+    // Pass through 404 from upstream directly - do NOT mask with fallback data!
+    if (upstreamRes.status === 404) {
+      return new Response(JSON.stringify({ detail: 'Invitation not found' }), {
+        status: 404,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
+    }
   } catch (_) {
     // Upstream timed out (e.g. Render spin-up) or threw network error
   }
 
-  // Graceful fallback for the default wedding (only for full invitation request, not version)
+  // Graceful fallback ONLY for initial default wedding cold loads (never during explicit cache-bypass or versions)
   const norm = slug.toLowerCase();
-  if (!isVersion && (norm === 'k-prabhu-m-nalini' || norm === 'prabhu-nalini' || norm === 'current')) {
+  if (!isBypassCache && !isVersion && (norm === 'k-prabhu-m-nalini' || norm === 'prabhu-nalini' || norm === 'current')) {
     return new Response(JSON.stringify(VERIFIED_WEDDING_DATA), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, max-age=0, s-maxage=5, stale-while-revalidate=15',
-        'CDN-Cache-Control': 'public, max-age=0, s-maxage=5, stale-while-revalidate=15',
-        'Vercel-CDN-Cache-Control': 'public, max-age=0, s-maxage=5, stale-while-revalidate=15',
+        'Cache-Control': 'public, max-age=0, s-maxage=3, stale-while-revalidate=10',
+        'CDN-Cache-Control': 'public, max-age=0, s-maxage=3, stale-while-revalidate=10',
+        'Vercel-CDN-Cache-Control': 'public, max-age=0, s-maxage=3, stale-while-revalidate=10',
         'Access-Control-Allow-Origin': '*',
         'X-Cache-Fallback': 'true',
       },
     });
   }
 
-  return new Response(JSON.stringify({ detail: 'Invitation not found' }), {
-    status: 404,
+  return new Response(JSON.stringify({ detail: isBypassCache ? 'Server warming up. Please retry in a few seconds.' : 'Invitation not found' }), {
+    status: isBypassCache ? 504 : 404,
     headers: {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',

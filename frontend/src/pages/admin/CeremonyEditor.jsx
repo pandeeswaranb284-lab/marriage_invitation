@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Save, CheckCircle2, ExternalLink } from 'lucide-react';
 import { API_BASE } from '../../services/api';
 import { notifyAdminUpdate } from '../../services/realtimeSync';
+import { saveWeddingToCache } from '../../services/weddingCache';
 
 const toDatetimeLocal = (dateStr) => {
   if (!dateStr) return '';
@@ -22,6 +23,7 @@ export default function CeremonyEditor({ type = "both" }) {
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState('');
   const [isDirty, setIsDirty] = useState(false);
+  const [originalSlug, setOriginalSlug] = useState('');
   const [activeTab, setActiveTab] = useState(type || 'both');
   const token = localStorage.getItem('admin_token');
   const apiBase = API_BASE;
@@ -30,18 +32,42 @@ export default function CeremonyEditor({ type = "both" }) {
     fetchWedding();
   }, []);
 
+  // Prevent accidental navigation with unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
+
+  const handleDiscard = () => {
+    if (isDirty && !window.confirm('Discard unsaved changes and reload from database?')) {
+      return;
+    }
+    fetchWedding();
+    setIsDirty(false);
+    setNotice('Reloaded latest saved ceremony & venue details from database.');
+  };
+
   useEffect(() => {
     if (type) setActiveTab(type);
   }, [type]);
 
   const fetchWedding = async () => {
     try {
-      const res = await fetch(`${apiBase}/weddings/admin/current`, {
+      const res = await fetch(`${apiBase}/weddings/admin/current?t=${Date.now()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
         setWedding(data);
+        if (data?.slug) {
+          setOriginalSlug(data.slug);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -56,7 +82,8 @@ export default function CeremonyEditor({ type = "both" }) {
     setNotice('');
 
     try {
-      const targetSlug = wedding?.slug || 'k-prabhu-m-nalini';
+      const targetSlug = originalSlug || wedding?.slug || 'current';
+      // 1. Send PUT request
       const res = await fetch(`${apiBase}/weddings/admin/${targetSlug}`, {
         method: 'PUT',
         headers: {
@@ -70,16 +97,37 @@ export default function CeremonyEditor({ type = "both" }) {
         }),
       });
 
-      if (res.ok) {
-        setIsDirty(false);
-        notifyAdminUpdate(targetSlug, { source: 'ceremony_editor' });
-        setNotice('✓ Ceremony and venue details saved & synchronized live across all devices!');
-      } else {
+      // 2. Verify backend response
+      if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.detail || 'Update failed');
+        throw new Error(errJson.detail || 'Save failed. Please check form values.');
       }
+
+      const saveResult = await res.json();
+      const updatedSlug = saveResult.slug || targetSlug;
+
+      // 3. Fetch server-confirmed record
+      const verifyRes = await fetch(`${apiBase}/weddings/admin/${updatedSlug}?t=${Date.now()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const confirmedData = verifyRes.ok ? await verifyRes.json() : (saveResult.wedding || saveResult);
+
+      // 4. Update Admin state with confirmed values
+      setWedding(confirmedData);
+      setOriginalSlug(confirmedData.slug || updatedSlug);
+      setIsDirty(false);
+
+      // 5. Update frontend cache
+      saveWeddingToCache(confirmedData.slug, confirmedData);
+      saveWeddingToCache('current', confirmedData);
+
+      // Realtime sync notification
+      notifyAdminUpdate(confirmedData.slug, { updated_at: confirmedData.updated_at, source: 'ceremony_editor' });
+
+      // 6. Display success notice
+      setNotice('✓ Saved & verified! Ceremony details confirmed in database.');
     } catch (err) {
-      setNotice(err.message || 'Failed to update details.');
+      setNotice(err.message || 'Failed to update ceremony details. Unsaved changes have been kept in your form.');
     } finally {
       setSaving(false);
     }
@@ -423,14 +471,26 @@ export default function CeremonyEditor({ type = "both" }) {
         </div>
         )}
 
-        <button
-          type="submit"
-          disabled={saving}
-          className="px-8 py-3 rounded-full bg-gradient-to-r from-gold-600 via-gold-400 to-gold-600 text-navy-950 font-cinzel font-bold text-xs tracking-widest uppercase hover:brightness-110 shadow-gold-glow flex items-center space-x-2"
-        >
-          <Save className="w-4 h-4" />
-          <span>{saving ? 'SAVING & SYNCHRONIZING LIVE...' : 'SAVE VENUES & CEREMONIES'}</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-4">
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-8 py-3 rounded-full bg-gradient-to-r from-gold-600 via-gold-400 to-gold-600 text-navy-950 font-cinzel font-bold text-xs tracking-widest uppercase hover:brightness-110 shadow-gold-glow flex items-center space-x-2"
+          >
+            <Save className="w-4 h-4" />
+            <span>{saving ? 'SAVING & SYNCHRONIZING LIVE...' : 'SAVE VENUES & CEREMONIES'}</span>
+          </button>
+
+          {isDirty && (
+            <button
+              type="button"
+              onClick={handleDiscard}
+              className="px-6 py-3 rounded-full bg-navy-900 border border-rose-500/40 text-rose-300 font-cinzel font-semibold text-xs tracking-wider uppercase hover:bg-rose-950/40 transition-colors"
+            >
+              Discard Changes
+            </button>
+          )}
+        </div>
       </form>
     </div>
   );

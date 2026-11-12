@@ -38,13 +38,13 @@ export default function BlessingsSection({
   onWishAdded,
   languageMode = 'both',
   groomName = '',
-  brideName  = '',
+  brideName = '',
 }) {
-  const [name,       setName]       = useState('');
-  const [message,    setMessage]    = useState('');
-  const [sending,    setSending]    = useState(false);
-  const [sentType,   setSentType]   = useState(null);   // 'public' | 'private' | null
-  const [error,      setError]      = useState('');
+  const [name, setName] = useState('');
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sentType, setSentType] = useState(null);   // 'public' | 'private' | null
+  const [error, setError] = useState('');
   const [localWishes, setLocalWishes] = useState(wishes.filter(w => w.is_approved && w.visibility !== 'private'));
 
   // Keep local list in sync if parent refreshes
@@ -53,7 +53,7 @@ export default function BlessingsSection({
   }, [wishes]);
 
   const validate = () => {
-    if (!name.trim())    { setError('Please enter your name.'); return false; }
+    if (!name.trim()) { setError('Please enter your name.'); return false; }
     if (!message.trim()) { setError('Please write your blessing.'); return false; }
     if (message.length > MAX_CHARS) { setError(`Message must be under ${MAX_CHARS} characters.`); return false; }
     return true;
@@ -65,11 +65,11 @@ export default function BlessingsSection({
     setError('');
     try {
       const res = await fetch(`${apiBase}/weddings/public/${slug}/wishes`, {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
+        body: JSON.stringify({
           guest_name: name.trim(),
-          message:    message.trim(),
+          message: message.trim(),
           visibility,
         }),
       });
@@ -101,7 +101,7 @@ export default function BlessingsSection({
     setError('');
   };
 
-  const showTamil   = languageMode === 'both' || languageMode === 'tamil';
+  const showTamil = languageMode === 'both' || languageMode === 'tamil';
   const showEnglish = languageMode === 'both' || languageMode === 'english';
 
   return (
@@ -232,9 +232,8 @@ export default function BlessingsSection({
                       placeholder="Share your heartfelt wishes for the couple..."
                       className="w-full px-4 py-3 rounded-xl bg-[#FFF7F9] border border-[#FCE4E8] text-[#8F3045] placeholder-[#8F3045]/35 text-sm focus:outline-none focus:border-[#E85D75] focus:ring-2 focus:ring-[#E85D75]/15 transition-all resize-none"
                     />
-                    <span className={`absolute bottom-2.5 right-3 text-[10px] font-mono transition-colors ${
-                      message.length > MAX_CHARS * 0.9 ? 'text-[#E85D75]' : 'text-[#8F3045]/35'
-                    }`}>
+                    <span className={`absolute bottom-2.5 right-3 text-[10px] font-mono transition-colors ${message.length > MAX_CHARS * 0.9 ? 'text-[#E85D75]' : 'text-[#8F3045]/35'
+                      }`}>
                       {message.length} / {MAX_CHARS}
                     </span>
                   </div>
